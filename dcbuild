@@ -1,0 +1,36 @@
+#!/bin/bash
+
+SERVICE="$1"
+VERSION="$2"
+INCLUDE_LATEST="$3"
+DOCKERHUB_NAMESPACE="javierfraga"
+
+if [[ -z "$SERVICE" || -z "$VERSION" ]]; then
+  echo "❌ Usage: dcbuild <service> <version> [latest]"
+  echo "Example: dcbuild python v0.01 latest"
+  exit 1
+fi
+
+IMAGE_NAME="utilcntr-${SERVICE}"
+FULL_IMAGE="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
+
+# 🔍 Ensure buildx builder exists
+if ! docker buildx inspect >/dev/null 2>&1; then
+  echo "🔧 Creating buildx builder..."
+  docker buildx create --use
+fi
+
+# 🏗 Prepare tag arguments
+TAGS=( "--tag" "${FULL_IMAGE}:${VERSION}" )
+if [[ "$INCLUDE_LATEST" == "latest" ]]; then
+  TAGS+=( "--tag" "${FULL_IMAGE}:latest" )
+fi
+
+# 🚀 Build and push for multi-arch
+echo "🏗 Building and pushing ${FULL_IMAGE}:${VERSION}..."
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  "${TAGS[@]}" \
+  --push \
+  "./${SERVICE}"
+

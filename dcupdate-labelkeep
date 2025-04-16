@@ -1,0 +1,14 @@
+#!/bin/bash
+
+SERVICE="$1"
+if [[ -z "$SERVICE" ]]; then
+  echo "❌ Usage: dcprotect <service>"
+  exit 1
+fi
+
+CONTAINER_NAME="${SERVICE}_1"
+
+echo "🔒 Protecting container: ${CONTAINER_NAME}"
+docker container update --label-add keep=true "${CONTAINER_NAME}"
+
+echo "✅ Label 'keep=true' applied."

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+SERVICE="$1"
+if [[ -z "$SERVICE" ]]; then
+  echo "❌ Usage: stop.sh <service>"
+  exit 1
+fi
+
+echo "🛑 Stopping container: ${SERVICE}"
+docker compose stop "${SERVICE}"
+
