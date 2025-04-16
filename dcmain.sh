@@ -12,48 +12,49 @@ REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 # 🧰 Source helper functions
 source "${REPO_DIR}/helpers.sh"
 
-# 🧠 Parse flexible CLI args
-# Accepts formats:
-#   dcrun node:v0.00 sh
-#   dcrun node v0.00 sh
-#   dcrun node sh           ← assumes latest tag
+# 🔍 Common argument parser for service, tag, and shell
 _parse_args() {
   local arg1="$1"
   local arg2="$2"
   local arg3="$3"
+  local arg4="$4"
+
+  if [[ "$arg1" == "--help" || "$arg1" == "-h" ]]; then
+    echo "Usage:"
+    echo "  dcrun <service>:<tag> <shell>"
+    echo "  dcrun <service> <tag> <shell>"
+    echo "  dcrun <service> <shell>       # uses :latest"
+    echo
+    echo "  dcup <service>:<tag> <shell> [project]"
+    echo "  dcup <service> <tag> <shell> [project]"
+    echo "  dcup <service> <shell> [project]        # uses :latest"
+    return 1
+  fi
 
   if [[ "$arg1" == *:* ]]; then
     SERVICE="${arg1%%:*}"
     IMAGE_TAG="${arg1#*:}"
     REQUESTED_SHELL="$arg2"
+    PROJECT_NAME="$3"  # Only used by dcup
   else
     SERVICE="$arg1"
-    IMAGE_TAG="${arg2:-latest}"
-    REQUESTED_SHELL="$3"
-    if [[ -z "$REQUESTED_SHELL" && "$IMAGE_TAG" =~ ^(sh|bash|zsh)$ ]]; then
-      REQUESTED_SHELL="$IMAGE_TAG"
+    if [[ "$arg2" =~ ^(sh|bash|zsh)$ ]]; then
       IMAGE_TAG="latest"
+      REQUESTED_SHELL="$arg2"
+      PROJECT_NAME="$3"
+    else
+      IMAGE_TAG="${arg2:-latest}"
+      REQUESTED_SHELL="$arg3"
+      PROJECT_NAME="$4"
     fi
   fi
 
   IMAGE_TAG="${IMAGE_TAG:-latest}"
 }
 
-# ❗ Ensure the shell exists in the image
-_validate_shell() {
-  local image="$1"
-  local shell="$2"
-
-  echo "🔎 Validating shell '$shell' in image: $image"
-  local container
-  container=$(docker create --entrypoint "$shell" "$image" -c "exit 0" 2>/dev/null) || return 1
-  docker rm -f "$container" >/dev/null 2>&1
-  return 0
-}
-
 # 🚀 Run ephemeral container
 dcrun() {
-  _parse_args "$1" "$2" "$3"
+  _parse_args "$1" "$2" "$3" || return $?
 
   local image="javierfraga/utilcntr-${SERVICE}:${IMAGE_TAG}"
 
@@ -80,9 +81,10 @@ dcrun() {
 
 # 🔧 Start persistent container and attach
 dcup() {
-  _parse_args "$1" "$2" "$3"
+  _parse_args "$1" "$2" "$3" "$4" || return $?
 
   local image="javierfraga/utilcntr-${SERVICE}:${IMAGE_TAG}"
+  local project="${PROJECT_NAME:-$(basename "$PWD")}"
 
   if [[ -z "$REQUESTED_SHELL" ]]; then
     echo "❌ You must provide a shell to run (e.g. 'sh', 'bash', or 'zsh')"
@@ -94,9 +96,11 @@ dcup() {
     return 1
   }
 
-  echo "🔧 Starting: $image"
+  echo "🔧 Starting: $image (project: $project)"
+
   docker compose \
     --file "${REPO_DIR}/docker-compose.yaml" \
+    --project-name "$project" \
     up \
     --detach \
     "${SERVICE}"
@@ -110,4 +114,3 @@ dcup() {
     --tty \
     "$CONTAINER_NAME" "$REQUESTED_SHELL"
 }
-
