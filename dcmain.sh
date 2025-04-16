@@ -9,50 +9,65 @@ while [ -h "$SOURCE" ]; do
 done
 REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
-# Source helper function
+# 🧰 Source helper functions
 source "${REPO_DIR}/helpers.sh"
 
-# 🧠 Parse service name and optional tag (format: service[:tag])
-_parse_service_tag() {
-  local raw="$1"
-  SERVICE="${raw%%:*}"                     # everything before colon
-  IMAGE_TAG="${raw#*:}"
-  [[ "$SERVICE" == "$IMAGE_TAG" ]] && IMAGE_TAG="latest"  # No colon? Default to latest
-}
+# 🧠 Parse flexible CLI args
+# Accepts formats:
+#   dcrun node:v0.00 sh
+#   dcrun node v0.00 sh
+#   dcrun node sh           ← assumes latest tag
+_parse_args() {
+  local arg1="$1"
+  local arg2="$2"
+  local arg3="$3"
 
-_detect_shell_in_container() {
-  local container="$1"
-  for SHELL_CANDIDATE in zsh bash sh; do
-    if docker exec "$container" which "$SHELL_CANDIDATE" >/dev/null 2>&1; then
-      echo "$SHELL_CANDIDATE"
-      return
-    fi
-  done
-  echo ""  # fallback if none found
-}
-
-dcrun() {
-  _parse_service_tag "$1"
-  shift
-  local REQUESTED_SHELL="$1"
-  shift
-
-  echo "🚀 Running ephemeral container: ${SERVICE}:${IMAGE_TAG}"
-
-  # Start a temp container to detect shell if not specified
-  if [[ -z "$REQUESTED_SHELL" ]]; then
-    echo "🔍 Detecting shell for image: ${SERVICE}:${IMAGE_TAG}"
-    CONTAINER_ID=$(docker create --rm javiersfraga/utilcntr-${SERVICE}:${IMAGE_TAG})
-    REQUESTED_SHELL=$(_detect_shell_in_container "$CONTAINER_ID")
-    docker rm "$CONTAINER_ID" >/dev/null
-    [[ -z "$REQUESTED_SHELL" ]] && {
-      echo "❌ No shell found in image."
-      return 1
-    }
-    echo "✅ Using shell: $REQUESTED_SHELL"
+  if [[ "$arg1" == *:* ]]; then
+    SERVICE="${arg1%%:*}"
+    IMAGE_TAG="${arg1#*:}"
+    REQUESTED_SHELL="$arg2"
   else
-    echo "✅ Using user-requested shell: $REQUESTED_SHELL"
+    SERVICE="$arg1"
+    IMAGE_TAG="${arg2:-latest}"
+    REQUESTED_SHELL="$3"
+    if [[ -z "$REQUESTED_SHELL" && "$IMAGE_TAG" =~ ^(sh|bash|zsh)$ ]]; then
+      REQUESTED_SHELL="$IMAGE_TAG"
+      IMAGE_TAG="latest"
+    fi
   fi
+
+  IMAGE_TAG="${IMAGE_TAG:-latest}"
+}
+
+# ❗ Ensure the shell exists in the image
+_validate_shell() {
+  local image="$1"
+  local shell="$2"
+
+  echo "🔎 Validating shell '$shell' in image: $image"
+  local container
+  container=$(docker create --entrypoint "$shell" "$image" -c "exit 0" 2>/dev/null) || return 1
+  docker rm -f "$container" >/dev/null 2>&1
+  return 0
+}
+
+# 🚀 Run ephemeral container
+dcrun() {
+  _parse_args "$1" "$2" "$3"
+
+  local image="javierfraga/utilcntr-${SERVICE}:${IMAGE_TAG}"
+
+  if [[ -z "$REQUESTED_SHELL" ]]; then
+    echo "❌ You must provide a shell to run (e.g. 'sh', 'bash', or 'zsh')"
+    return 1
+  fi
+
+  _validate_shell "$image" "$REQUESTED_SHELL" || {
+    echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
+    return 1
+  }
+
+  echo "🚀 Running: $image with shell: $REQUESTED_SHELL"
 
   docker compose \
     --file "${REPO_DIR}/docker-compose.yaml" \
@@ -63,35 +78,31 @@ dcrun() {
     "${SERVICE}" "$REQUESTED_SHELL"
 }
 
+# 🔧 Start persistent container and attach
 dcup() {
-  _parse_service_tag "$1"
-  shift
-  local REQUESTED_SHELL="$1"
-  shift
+  _parse_args "$1" "$2" "$3"
 
-  echo "🔧 Starting persistent container: ${SERVICE}:${IMAGE_TAG}"
+  local image="javierfraga/utilcntr-${SERVICE}:${IMAGE_TAG}"
+
+  if [[ -z "$REQUESTED_SHELL" ]]; then
+    echo "❌ You must provide a shell to run (e.g. 'sh', 'bash', or 'zsh')"
+    return 1
+  fi
+
+  _validate_shell "$image" "$REQUESTED_SHELL" || {
+    echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
+    return 1
+  }
+
+  echo "🔧 Starting: $image"
   docker compose \
     --file "${REPO_DIR}/docker-compose.yaml" \
     up \
     --detach \
     "${SERVICE}"
 
-  # 🔍 Find most recently created/started container for the service
   local CONTAINER_NAME
   CONTAINER_NAME=$(_find_latest_container "$SERVICE") || return 1
-
-  # 🧠 Auto-detect best shell if none was explicitly requested
-  if [[ -z "$REQUESTED_SHELL" ]]; then
-    echo "🔍 Detecting shell in container: $CONTAINER_NAME"
-    REQUESTED_SHELL=$(_detect_shell_in_container "$CONTAINER_NAME")
-    if [[ -z "$REQUESTED_SHELL" ]]; then
-      echo "❌ No shell found in container '$CONTAINER_NAME'" >&2
-      return 1
-    fi
-    echo "✅ Using shell: $REQUESTED_SHELL"
-  else
-    echo "✅ Using user-requested shell: $REQUESTED_SHELL"
-  fi
 
   echo "🛠  Attaching to container: $CONTAINER_NAME"
   docker exec \

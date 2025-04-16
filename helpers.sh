@@ -8,7 +8,7 @@ _find_latest_container() {
   local container_name
 
   container_name=$(docker ps \
-    --filter "name=^/${service}_" \
+    --filter "name=${service}" \
     --format '{{.Names}}' | head -n 1)
 
   if [[ -z "$container_name" ]]; then
