@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  node:
+    build:
+      context: ./node
+    image: javiersfraga/utilcntr-node
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/app
+
+  python:
+    build:
+      context: ./python
+    image: javiersfraga/utilcntr-python
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/app
+
+  arch:
+    build:
+      context: ./arch
+    image: javiersfraga/utilcntr-arch
+    working_dir: /mnt
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/mnt
+
+  debian:
+    build:
+      context: ./debian
+    image: javiersfraga/utilcntr-debian
+    working_dir: /mnt
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/mnt
