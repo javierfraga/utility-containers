@@ -4,7 +4,7 @@ services:
   node:
     build:
       context: ./node
-    image: javiersfraga/utilcntr-node
+    image: javierfraga/utilcntr-node
     working_dir: /app
     stdin_open: true
     tty: true
@@ -14,7 +14,7 @@ services:
   python:
     build:
       context: ./python
-    image: javiersfraga/utilcntr-python
+    image: javierfraga/utilcntr-python
     working_dir: /app
     stdin_open: true
     tty: true
@@ -24,7 +24,7 @@ services:
   arch:
     build:
       context: ./arch
-    image: javiersfraga/utilcntr-arch
+    image: javierfraga/utilcntr-arch
     working_dir: /mnt
     stdin_open: true
     tty: true
@@ -34,7 +34,7 @@ services:
   debian:
     build:
       context: ./debian
-    image: javiersfraga/utilcntr-debian
+    image: javierfraga/utilcntr-debian
     working_dir: /mnt
     stdin_open: true
     tty: true
