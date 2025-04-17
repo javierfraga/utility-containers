@@ -1,10 +1,8 @@
-version: "3.8"
-
 services:
   node:
     build:
       context: ./node
-    image: javiersfraga/utilcntr-node
+    image: ${DOCKERHUB_NAMESPACE}/utilcntr-node
     working_dir: /app
     stdin_open: true
     tty: true
@@ -14,7 +12,7 @@ services:
   python:
     build:
       context: ./python
-    image: javiersfraga/utilcntr-python
+    image: ${DOCKERHUB_NAMESPACE}/utilcntr-python
     working_dir: /app
     stdin_open: true
     tty: true
@@ -24,7 +22,7 @@ services:
   arch:
     build:
       context: ./arch
-    image: javiersfraga/utilcntr-arch
+    image: ${DOCKERHUB_NAMESPACE}/utilcntr-arch
     working_dir: /mnt
     stdin_open: true
     tty: true
@@ -34,9 +32,10 @@ services:
   debian:
     build:
       context: ./debian
-    image: javiersfraga/utilcntr-debian
+    image: ${DOCKERHUB_NAMESPACE}/utilcntr-debian
     working_dir: /mnt
     stdin_open: true
     tty: true
     volumes:
       - .:/mnt
+

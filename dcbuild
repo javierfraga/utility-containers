@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# 📥 Load environment variables
+ENV_FILE="$(dirname "$0")/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  source "$ENV_FILE"
+else
+  echo "❌ Missing .env file: $ENV_FILE"
+  exit 1
+fi
+
+# 🆘 Help output
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  echo "DESCRIPTION: Builds and pushes a multi-arch Docker image using buildx for a given service."
+  echo
+  echo "USAGE:"
+  echo "  dcbuild <service> <version> [latest]"
+  echo
+  echo "ARGUMENTS:"
+  echo "  <service>      Name of the service directory (e.g., python, node, etc.)"
+  echo "  <version>      Version tag to apply (e.g., v0.01)"
+  echo "  [latest]       Optional — also tag the image as 'latest'"
+  echo
+  echo "EXAMPLE:"
+  echo "  dcbuild python v0.01 latest"
+  echo
+  echo "This will build ./python and push:"
+  echo "  ${DOCKERHUB_NAMESPACE}/utilcntr-python:v0.01"
+  echo "  ${DOCKERHUB_NAMESPACE}/utilcntr-python:latest"
+  exit 0
+fi
+
+SERVICE="$1"
+VERSION="$2"
+INCLUDE_LATEST="$3"
+
+if [[ -z "$SERVICE" || -z "$VERSION" ]]; then
+  echo "❌ Usage: dcbuild <service> <version> [latest]"
+  echo "Try: dcbuild --help"
+  exit 1
+fi
+
+IMAGE_NAME="utilcntr-${SERVICE}"
+FULL_IMAGE="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
+
+# 🔍 Ensure buildx builder exists
+if ! docker buildx inspect >/dev/null 2>&1; then
+  echo "🔧 Creating buildx builder..."
+  docker buildx create --use
+fi
+
+# 🏗 Prepare tag arguments
+TAGS=( "--tag" "${FULL_IMAGE}:${VERSION}" )
+if [[ "$INCLUDE_LATEST" == "latest" ]]; then
+  TAGS+=( "--tag" "${FULL_IMAGE}:latest" )
+fi
+
+# 🚀 Build and push for multi-arch
+echo "🏗 Building and pushing ${FULL_IMAGE}:${VERSION}..."
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  "${TAGS[@]}" \
+  --push \
+  "./${SERVICE}"
+
