@@ -1,14 +1,48 @@
 #!/bin/bash
 
-SERVICE="$1"
-if [[ -z "$SERVICE" ]]; then
-  echo "❌ Usage: dcprotect <service>"
+# 📍 Resolve the absolute path to this script
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+# 🆘 Help output
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  echo "DESCRIPTION: Applies a protection label (keep=true) to persistent (dcup) containers to prevent removal."
+  echo "Usage:"
+  echo "  dcudpate-labelkeep                 # protects all services in the docker compose project for the current directory"
+  echo "  dcudpate-labelkeep <project-name>  # protects all services in the given docker compose project"
+  echo
+  echo "Example:"
+  echo "  If you ran:  dcup node v0.00 sh myproject"
+  echo "  Then you'd see:  myproject-node-1"
+  echo "  And protect it with: dcudpate-labelkeep myproject"
+  echo
+  echo "This is a wrapper for:"
+  echo "  docker container update --label-add keep=true <container>"
+  exit 0
+fi
+
+# 📦 Determine project name
+project="${1:-$(basename "$PWD")}"
+
+echo "🔒 Protecting containers in project: $project"
+
+# Protect all containers belonging to the project
+containers=$(docker ps --all --filter "name=^${project}-" --format '{{.Names}}')
+
+if [[ -z "$containers" ]]; then
+  echo "❌ No containers found for project '${project}'."
   exit 1
 fi
 
-CONTAINER_NAME="${SERVICE}_1"
+for container in $containers; do
+  echo "📌 Applying 'keep=true' to: $container"
+  docker container update --label-add keep=true "$container"
+done
 
-echo "🔒 Protecting container: ${CONTAINER_NAME}"
-docker container update --label-add keep=true "${CONTAINER_NAME}"
+echo "✅ Protection labels applied."
 
-echo "✅ Label 'keep=true' applied."
