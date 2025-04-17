@@ -11,6 +11,7 @@ REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
 # 🆘 Help output
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  echo "BECAREFUL: THIS WILL RM CONTAINER PERMANENTLY!!!"
   echo "Usage:"
   echo "  dcdown                 # shuts down docker compose project for current directory"
   echo "  dcdown <project-name>  # shuts down docker compose project with custom name"

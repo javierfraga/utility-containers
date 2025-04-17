@@ -1,11 +1,38 @@
 #!/bin/bash
 
-SERVICE="$1"
-if [[ -z "$SERVICE" ]]; then
-  echo "❌ Usage: stop.sh <service>"
-  exit 1
+# 📍 Resolve the absolute path to this script
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+# 🆘 Help output
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  echo "DESCRIPTION: This will STOP but not RM the container. `dcdown` will RM the container."
+  echo "Usage:"
+  echo "  dcstop                 # stops all services in the docker compose project for the current directory"
+  echo "  dcstop <project-name>  # stops all services in the given docker compose project"
+  echo
+  echo "Example:"
+  echo "  If you ran:  dcup node v0.00 sh myproject"
+  echo "  Then you'd see:  myproject-node-1"
+  echo "  And stop it with: dcstop myproject"
+  echo
+  echo "This is a wrapper for:"
+  echo "  docker compose --file ./docker-compose.yaml --project-name <name> stop"
+  exit 0
 fi
 
-echo "🛑 Stopping container: ${SERVICE}"
-docker compose stop "${SERVICE}"
+# 📦 Determine project name
+project="${1:-$(basename "$PWD")}"
+
+echo "🛑 Stopping all containers in project: $project"
+
+docker compose \
+  --file "${REPO_DIR}/docker-compose.yaml" \
+  --project-name "$project" \
+  stop
 
