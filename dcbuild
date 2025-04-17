@@ -1,7 +1,16 @@
 #!/bin/bash
 
+# 📍 Resolve absolute path to script directory (even if symlinked)
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
 # 📥 Load environment variables
-ENV_FILE="$(dirname "$0")/.env"
+ENV_FILE="${SCRIPT_DIR}/.env"
 if [[ -f "$ENV_FILE" ]]; then
   source "$ENV_FILE"
 else
@@ -24,7 +33,7 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   echo "EXAMPLE:"
   echo "  dcbuild python v0.01 latest"
   echo
-  echo "This will build ./python and push:"
+  echo "This will build:"
   echo "  ${DOCKERHUB_NAMESPACE}/utilcntr-python:v0.01"
   echo "  ${DOCKERHUB_NAMESPACE}/utilcntr-python:latest"
   exit 0
@@ -42,8 +51,15 @@ fi
 
 IMAGE_NAME="utilcntr-${SERVICE}"
 FULL_IMAGE="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
+SERVICE_PATH="${SCRIPT_DIR}/${SERVICE}"
 
-# 🔍 Ensure buildx builder exists
+# 🔍 Check if service directory exists
+if [[ ! -d "$SERVICE_PATH" ]]; then
+  echo "❌ Service directory does not exist: $SERVICE_PATH"
+  exit 1
+fi
+
+# 🔧 Ensure buildx builder exists
 if ! docker buildx inspect >/dev/null 2>&1; then
   echo "🔧 Creating buildx builder..."
   docker buildx create --use
@@ -61,5 +77,5 @@ docker buildx build \
   --platform linux/amd64,linux/arm64 \
   "${TAGS[@]}" \
   --push \
-  "./${SERVICE}"
+  "$SERVICE_PATH"
 
