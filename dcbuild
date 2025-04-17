@@ -1,7 +1,16 @@
 #!/bin/bash
 
+# 📍 Resolve script directory (even if symlinked)
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
 # 📥 Load environment variables
-ENV_FILE="$(dirname "$0")/.env"
+ENV_FILE="${SCRIPT_DIR}/.env"
 if [[ -f "$ENV_FILE" ]]; then
   source "$ENV_FILE"
 else
