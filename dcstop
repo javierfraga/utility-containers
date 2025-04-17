@@ -11,7 +11,7 @@ REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
 # 🆘 Help output
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-  echo "DESCRIPTION: This will STOP persistent only (dcup) containers but not RM. `dcdown` will RM the container."
+  echo "DESCRIPTION: This will STOP persistent only (dcup) containers but not RM. 'dcdown' will RM the container."
   echo "Usage:"
   echo "  dcstop                 # stops all services in the docker compose project for the current directory"
   echo "  dcstop <project-name>  # stops all services in the given docker compose project"
