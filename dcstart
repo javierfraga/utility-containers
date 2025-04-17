@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# 📍 Resolve the absolute path to this script
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+# 🆘 Help output
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  echo "DESCRIPTION: Start stopped persistent only (dcup) containers"
+  echo "Usage:"
+  echo "  dcstart                 # starts all services in the docker compose project for the current directory"
+  echo "  dcstart <project-name>  # starts all services in the given docker compose project"
+  echo
+  echo "Example:"
+  echo "  If you ran:  dcup node v0.00 sh myproject"
+  echo "  Then you'd see:  myproject-node-1"
+  echo "  And you can restart it with: dcstart myproject"
+  echo
+  echo "This is a wrapper for:"
+  echo "  docker compose --file ./docker-compose.yaml --project-name <name> start"
+  exit 0
+fi
+
+# 🟢 Determine project name
+project="${1:-$(basename "$PWD")}"
+
+echo "🟢 Starting all containers in project: $project"
+
+docker compose \
+  --file "${REPO_DIR}/docker-compose.yaml" \
+  --project-name "$project" \
+  start
+
