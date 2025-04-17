@@ -1,38 +1,34 @@
 #!/bin/bash
 
-# 📍 Resolve the absolute path to this script
+# 📍 Resolve absolute path
 SOURCE="${BASH_SOURCE[0]:-$0}"
 while [ -h "$SOURCE" ]; do
   DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
   SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
-# 🆘 Help output
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-  echo "DESCRIPTION: This will STOP persistent only (dcup) containers but not RM. 'dcdown' will RM the container."
+  echo "DESCRIPTION: Stop persistent containers started via dcup (but don't remove them)."
   echo "Usage:"
-  echo "  dcstop                 # stops all services in the docker compose project for the current directory"
-  echo "  dcstop <project-name>  # stops all services in the given docker compose project"
+  echo "  dcstop                        # stop containers for current directory"
+  echo "  dcstop <proj1> [proj2 ...]    # stop containers in multiple projects"
   echo
   echo "Example:"
-  echo "  If you ran:  dcup node v0.00 sh myproject"
-  echo "  Then you'd see:  myproject-node-1"
-  echo "  And stop it with: dcstop myproject"
-  echo
-  echo "This is a wrapper for:"
-  echo "  docker compose --file ./docker-compose.yaml --project-name <name> stop"
+  echo "  dcstop dev tmp"
+  echo "  => stops dev-node-1 and tmp-node-1"
   exit 0
 fi
 
-# 📦 Determine project name
-project="${1:-$(basename "$PWD")}"
+projects=("$@")
+[[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
 
-echo "🛑 Stopping all containers in project: $project"
-
-docker compose \
-  --file "${REPO_DIR}/docker-compose.yaml" \
-  --project-name "$project" \
-  stop
+for project in "${projects[@]}"; do
+  echo "🛑 Stopping all containers in project: $project"
+  docker compose \
+    --file "${REPO_DIR}/docker-compose.yaml" \
+    --project-name "$project" \
+    stop
+done
 
