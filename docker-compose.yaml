@@ -2,40 +2,40 @@ services:
   node:
     build:
       context: ./node
-    image: ${DOCKERHUB_NAMESPACE}/utilcntr-node
+    image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-node
     working_dir: /app
     stdin_open: true
     tty: true
     volumes:
-      - .:/app
+      - ${HOST_WORKDIR:-.}:/app
 
   python:
     build:
       context: ./python
-    image: ${DOCKERHUB_NAMESPACE}/utilcntr-python
+    image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-python
     working_dir: /app
     stdin_open: true
     tty: true
     volumes:
-      - .:/app
+      - ${HOST_WORKDIR:-.}:/app
 
   arch:
     build:
       context: ./arch
-    image: ${DOCKERHUB_NAMESPACE}/utilcntr-arch
+    image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-arch
     working_dir: /mnt
     stdin_open: true
     tty: true
     volumes:
-      - .:/mnt
+      - ${HOST_WORKDIR:-.}:/mnt
 
   debian:
     build:
       context: ./debian
-    image: ${DOCKERHUB_NAMESPACE}/utilcntr-debian
+    image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-debian
     working_dir: /mnt
     stdin_open: true
     tty: true
     volumes:
-      - .:/mnt
+      - ${HOST_WORKDIR:-.}:/mnt
 

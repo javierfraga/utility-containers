@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# 📍 Resolve absolute path to this script
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+# 🔗 Load helpers
+source "${REPO_DIR}/helpers.sh"
+
+# 🔗 Load env vars (DOCKERHUB_NAMESPACE, IMAGE_PREFIX)
+if [[ -f "${REPO_DIR}/.env" ]]; then
+  source "${REPO_DIR}/.env"
+else
+  echo "❌ Missing .env file at ${REPO_DIR}/.env"
+  exit 1
+fi
+
+# 🚀 Run an ephemeral container
+_parse_args "$1" "$2" "$3" || exit $?
+
+image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
+
+if [[ -z "$REQUESTED_SHELL" ]]; then
+  echo "❌ You must provide a shell to run (e.g. sh, bash, zsh)"
+  exit 1
+fi
+
+_validate_shell "$image" "$REQUESTED_SHELL" || {
+  echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
+  exit 1
+}
+
+echo "🚀 Running: $image with shell: $REQUESTED_SHELL"
+
+# Need this for docker-compose.yaml in --file option below
+export HOST_WORKDIR="$(pwd)"
+
+docker compose \
+  --file "${REPO_DIR}/docker-compose.yaml" \
+  run \
+  --rm \
+  --interactive \
+  --tty \
+  "${SERVICE}" "$REQUESTED_SHELL"
+
