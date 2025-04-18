@@ -35,10 +35,10 @@ _validate_shell "$image" "$REQUESTED_SHELL" || {
   exit 1
 }
 
-echo "🚀 Running: $image with shell: $REQUESTED_SHELL"
 
 # Need this for docker-compose.yaml in --file option below
 export HOST_WORKDIR="$(pwd)"
+echo "🚀 Running: $image with shell: $REQUESTED_SHELL, in this location: $HOST_WORKDIR"
 
 docker compose \
   --file "${REPO_DIR}/docker-compose.yaml" \
