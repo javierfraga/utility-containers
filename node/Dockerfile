@@ -9,6 +9,7 @@ ARG GID=1000
 
 ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \
     APP_DIR="/app" \
+    MNT_DIR="/mnt" \
     NODE_ENV=production
 
 # Don't need this node image already has user I can use
@@ -16,8 +17,9 @@ ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \
 # RUN groupadd --gid "${GID}" "${USERNAME}" \
 #  && useradd --uid "${UID}" --gid "${GID}" --create-home --shell /bin/bash "${USERNAME}"
 
-WORKDIR ${APP_DIR}
-COPY --chown=${USERNAME}:${USERNAME} package*.json ./
+# Mount here so can copy and Bind Mount (in dev) will not overwrite these files
+WORKDIR ${MNT_DIR}
+COPY ./Dockerfile ./app.mjs ./readme.md ./package*.json ./
 
 # ============
 # DEV STAGE (Default for dcbuild)
@@ -40,15 +42,11 @@ RUN apt-get update && \
 # USER ${USERNAME} ← ❌ Remove this
 USER root
 
+# Set working directory to /app (which will be bind-mounted)
 WORKDIR ${APP_DIR}
 
-# Install dev dependencies
-# Handlges gracefully it package.json does not exist
-RUN [ -f package.json ] && npm install || echo "No package.json found. Skipping npm install."
-
-# Copy full source code after install (caches better)
-COPY ./ ./
-
+# Anonymous volume for node_modules to isolate from host
+VOLUME ["/app/node_modules"]
 
 # For dev servers listening on port 80
 EXPOSE 80

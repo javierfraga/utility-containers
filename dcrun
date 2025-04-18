@@ -50,5 +50,6 @@ docker compose \
   --rm \
   --interactive \
   --tty \
+  --service-ports \
   "${SERVICE}" "$REQUESTED_SHELL"
 

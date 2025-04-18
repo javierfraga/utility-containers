@@ -12,6 +12,8 @@ services:
     volumes:
       - ${HOST_WORKDIR:-.}:/app
       - /app/node_modules
+    ports:
+      - "3000:80"
 
   python:
     build:
