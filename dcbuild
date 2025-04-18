@@ -48,6 +48,7 @@ VERSION="$2"
 TARGET_STAGE="$4"
 # default to "util" if not passed or not defined in .env
 BUILD_TARGET="${TARGET_STAGE:-${DEFAULT_BUILD_TARGET:-dev}}"
+echo "📦 Building stage: ${BUILD_TARGET}"
 
 if [[ -z "$SERVICE" || -z "$VERSION" ]]; then
   echo "❌ Usage: dcbuild <service> <version> [latest]"

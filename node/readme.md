@@ -2,6 +2,6 @@
 ```bash
 npm init
 npm install express
-npm --save-dev nodemon
+npm install --save-dev nodemon
 npx nodemon ./app.mjs
 ```

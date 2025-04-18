@@ -23,7 +23,12 @@ fi
 # 🔧 Run persistent container for a project
 _parse_args "$1" "$2" "$3" "$4" || exit $?
 
+# Create full image name
 image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
+
+# export for docker-compose.yaml
+export FULL_IMAGE_TAG="${image}"  # 👈 makes it available to docker compose
+
 project="${PROJECT_NAME:-$(basename "$PWD")}"
 
 if [[ -z "$REQUESTED_SHELL" ]]; then

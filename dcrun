@@ -23,7 +23,11 @@ fi
 # 🚀 Run an ephemeral container
 _parse_args "$1" "$2" "$3" || exit $?
 
+# Create full image name
 image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
+
+# export for docker-compose.yaml
+export FULL_IMAGE_TAG="${image}"  # 👈 makes it available to docker compose
 
 if [[ -z "$REQUESTED_SHELL" ]]; then
   echo "❌ You must provide a shell to run (e.g. sh, bash, zsh)"

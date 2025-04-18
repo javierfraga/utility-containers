@@ -3,7 +3,7 @@
 # ===========
 FROM node:latest AS base
 
-ARG USERNAME=nodeuser
+ARG USERNAME=node
 ARG UID=1000
 ARG GID=1000
 
@@ -11,9 +11,10 @@ ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \
     APP_DIR="/app" \
     NODE_ENV=production
 
+# Don't need this node image already has user I can use
 # Create non-root user
-RUN groupadd --gid "${GID}" "${USERNAME}" \
- && useradd --uid "${UID}" --gid "${GID}" --create-home --shell /bin/bash "${USERNAME}"
+# RUN groupadd --gid "${GID}" "${USERNAME}" \
+#  && useradd --uid "${UID}" --gid "${GID}" --create-home --shell /bin/bash "${USERNAME}"
 
 WORKDIR ${APP_DIR}
 COPY --chown=${USERNAME}:${USERNAME} package*.json ./
@@ -35,14 +36,18 @@ RUN apt-get update && \
       dumb-init && \
     rm -rf /var/lib/apt/lists/*
 
-USER ${USERNAME}
+# ✅ Stay as root
+# USER ${USERNAME} ← ❌ Remove this
+USER root
+
 WORKDIR ${APP_DIR}
 
 # Install dev dependencies
-RUN npm install
+# Handlges gracefully it package.json does not exist
+RUN [ -f package.json ] && npm install || echo "No package.json found. Skipping npm install."
 
 # Copy full source code after install (caches better)
-COPY --chown=${USERNAME}:${USERNAME} . .
+COPY ./ ./
 
 
 # For dev servers listening on port 80
@@ -53,7 +58,7 @@ EXPOSE 80
 # - Properly forward signals (e.g., SIGINT, SIGTERM)
 # - Reap zombie child processes (e.g., editors, background tasks)
 # Especially useful in long-lived, interactive dev sessions
-ENTRYPOINT ["dumb-init", "--"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start an interactive Zsh shell in dev container
 CMD ["zsh"]

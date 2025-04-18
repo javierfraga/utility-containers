@@ -1,9 +1,12 @@
 services:
   node:
+    image: ${FULL_IMAGE_TAG}
     build:
       context: ./node
-    image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-node
+      target: ${DEFAULT_BUILD_TARGET}
+    # image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-node # only needs this if always uses :latest
     working_dir: /app
+    entrypoint: ["dumb-init", "--"]  # ✅ explicitly set entrypoint
     stdin_open: true
     tty: true
     volumes:
