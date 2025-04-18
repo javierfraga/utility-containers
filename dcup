@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# 📍 Resolve absolute path to this script
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+# 🔗 Load helpers
+source "${REPO_DIR}/helpers.sh"
+
+# 🔗 Load env vars (DOCKERHUB_NAMESPACE, IMAGE_PREFIX)
+if [[ -f "${REPO_DIR}/.env" ]]; then
+  source "${REPO_DIR}/.env"
+else
+  echo "❌ Missing .env file at ${REPO_DIR}/.env"
+  exit 1
+fi
+
+# 🔧 Run persistent container for a project
+_parse_args "$1" "$2" "$3" "$4" || exit $?
+
+image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
+project="${PROJECT_NAME:-$(basename "$PWD")}"
+
+if [[ -z "$REQUESTED_SHELL" ]]; then
+  echo "❌ You must provide a shell to run (e.g. sh, bash, zsh)"
+  exit 1
+fi
+
+_validate_shell "$image" "$REQUESTED_SHELL" || {
+  echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
+  exit 1
+}
+
+echo "🔧 Starting: $image (project: $project)"
+
+# Need this for docker-compose.yaml in --file option below
+export HOST_WORKDIR="$(pwd)"
+
+docker compose \
+  --file "${REPO_DIR}/docker-compose.yaml" \
+  --project-name "$project" \
+  up \
+  --detach \
+  "${SERVICE}"
+
+container=$(_find_latest_container "$SERVICE") || exit 1
+
+echo "🛠  Attaching to container: $container"
+docker exec \
+  --interactive \
+  --tty \
+  "$container" "$REQUESTED_SHELL"
+
