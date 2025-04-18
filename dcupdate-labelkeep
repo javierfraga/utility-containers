@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# 📍 Resolve absolute path
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  echo "DESCRIPTION: Applies a protection label (keep=true) to containers in one or more projects."
+  echo "Usage:"
+  echo "  dcupdate-labelkeep                    # protects current project"
+  echo "  dcupdate-labelkeep <proj1> [proj2]    # protects multiple projects"
+  echo
+  echo "Example:"
+  echo "  dcupdate-labelkeep myproject tmp"
+  echo "  => sets keep=true on: myproject-node-1, tmp-node-1, etc."
+  exit 0
+fi
+
+projects=("$@")
+[[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
+
+for project in "${projects[@]}"; do
+  echo "🔒 Protecting containers in project: $project"
+  containers=$(docker ps --all --filter "name=^${project}-" --format '{{.Names}}')
+
+  if [[ -z "$containers" ]]; then
+    echo "❌ No containers found for project '${project}'"
+    continue
+  fi
+
+  for container in $containers; do
+    echo "📌 Applying 'keep=true' to: $container"
+    docker container update --label-add keep=true "$container"
+  done
+done
+
+echo "✅ Protection labels applied."
+

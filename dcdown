@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# 📍 Resolve absolute path
+SOURCE="${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  echo "BE CAREFUL: THIS WILL REMOVE CONTAINERS PERMANENTLY!"
+  echo "Usage:"
+  echo "  dcdown                        # shut down project for current directory"
+  echo "  dcdown <proj1> [proj2 ...]    # shut down multiple projects"
+  echo
+  echo "Example:"
+  echo "  dcdown myproject tmpproject"
+  echo "  => removes containers like: myproject-node-1, tmpproject-node-1"
+  exit 0
+fi
+
+projects=("$@")
+[[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
+
+for project in "${projects[@]}"; do
+  echo "📦 Shutting down project: $project"
+  docker compose \
+    --file "${REPO_DIR}/docker-compose.yaml" \
+    --project-name "$project" \
+    down
+done
+
