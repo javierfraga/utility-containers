@@ -48,7 +48,14 @@ COPY --chown=${USERNAME}:${USERNAME} . .
 # For dev servers listening on port 80
 EXPOSE 80
 
-# Default command in dev: shell
+# Use dumb-init to:
+# - Act as PID 1 inside the container
+# - Properly forward signals (e.g., SIGINT, SIGTERM)
+# - Reap zombie child processes (e.g., editors, background tasks)
+# Especially useful in long-lived, interactive dev sessions
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start an interactive Zsh shell in dev container
 CMD ["zsh"]
 
 # ===============
