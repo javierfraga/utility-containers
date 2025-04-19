@@ -32,6 +32,8 @@ _parse_args() {
         shift 2
         ;;
       --help|-h)
+        echo "DESCRIPTION: dcrun will add an ephemeral container."
+        echo "DESCRIPTION: dcup runs a persistent container that must be stopped with dcstop or removed with dcdown."
         echo "Usage:"
         echo "  dcrun <service>:<tag> <shell> [--port HOST:CONTAINER ...]"
         echo "  dcrun <service> <tag> <shell> [--port HOST:CONTAINER ...]"
