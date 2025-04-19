@@ -58,9 +58,6 @@ EXPOSE 80
 # Especially useful in long-lived, interactive dev sessions
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
-# Start an interactive Zsh shell in dev container
-CMD ["zsh"]
-
 # ===============
 # PRODUCTION STAGE
 # ===============
