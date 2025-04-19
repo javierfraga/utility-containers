@@ -34,9 +34,13 @@ RUN apt-get update && \
     apt-get install --no-install-recommends --yes \
       zsh \
       git \
+      fd-find \
       zsh-autosuggestions \
       dumb-init && \
     rm -rf /var/lib/apt/lists/*
+
+# ✅ Symlink in separate RUN (optional)
+RUN ln -s $(which fdfind) /usr/local/bin/fd
 
 # ✅ Stay as root
 # USER ${USERNAME} ← ❌ Remove this
