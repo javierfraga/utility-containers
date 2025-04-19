@@ -41,34 +41,23 @@ _validate_shell "$image" "$REQUESTED_SHELL" || {
   exit 1
 }
 
-# Handle optional port overrides
-COMPOSE_OVERRIDES_FILE=""
+# 📦 Export PORT_MAPPINGS if provided via --port
 if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
-  COMPOSE_OVERRIDES_FILE="${REPO_DIR}/.compose.override.ports.yaml"
-
+  PORT_MAPPINGS=$(IFS=, ; echo "${USER_PORTS[*]}")
+  export PORT_MAPPINGS
   echo "💡 Overriding ports for service '$SERVICE':"
   for p in "${USER_PORTS[@]}"; do
     echo "  - $p"
-  done
-
-  cat > "$COMPOSE_OVERRIDES_FILE" <<EOF
-services:
-  ${SERVICE}:
-    ports:
-EOF
-
-  for p in "${USER_PORTS[@]}"; do
-    echo "      - \"$p\"" >> "$COMPOSE_OVERRIDES_FILE"
   done
 fi
 
 # Need this for docker-compose.yaml in --file option below
 export HOST_WORKDIR="$(pwd)"
-echo "🔧 Starting: $image (project: $project), in this location: $HOST_WORKDIR"
+echo "🔧 Starting: $image (project: $project)"
+echo "🔧 Starting: In this location: $HOST_WORKDIR"
 
 docker compose \
   --file "${REPO_DIR}/docker-compose.yaml" \
-  $( [[ -n "$COMPOSE_OVERRIDES_FILE" ]] && echo "--file $COMPOSE_OVERRIDES_FILE" ) \
   --project-name "$project" \
   up \
   --detach \
@@ -81,7 +70,4 @@ docker exec \
   --interactive \
   --tty \
   "$container" "$REQUESTED_SHELL"
-
-# 🧹 Clean up override file
-[[ -n "$COMPOSE_OVERRIDES_FILE" ]] && rm -f "$COMPOSE_OVERRIDES_FILE"
 
