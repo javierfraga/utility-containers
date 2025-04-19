@@ -21,7 +21,7 @@ else
 fi
 
 # 🚀 Run an ephemeral container
-_parse_args "$1" "$2" "$3" || exit $?
+_parse_args "$@" || exit $?
 
 # Create full image name
 image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
@@ -39,6 +39,26 @@ _validate_shell "$image" "$REQUESTED_SHELL" || {
   exit 1
 }
 
+# Handle optional port overrides
+COMPOSE_OVERRIDES_FILE=""
+if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
+  COMPOSE_OVERRIDES_FILE="${REPO_DIR}/.compose.override.ports.yaml"
+
+  echo "💡 Overriding ports for service '$SERVICE':"
+  for p in "${USER_PORTS[@]}"; do
+    echo "  - $p"
+  done
+
+  cat > "$COMPOSE_OVERRIDES_FILE" <<EOF
+services:
+  ${SERVICE}:
+    ports:
+EOF
+
+  for p in "${USER_PORTS[@]}"; do
+    echo "      - \"$p\"" >> "$COMPOSE_OVERRIDES_FILE"
+  done
+fi
 
 # Need this for docker-compose.yaml in --file option below
 export HOST_WORKDIR="$(pwd)"
@@ -46,10 +66,14 @@ echo "🚀 Running: $image with shell: $REQUESTED_SHELL, in this location: $HOST
 
 docker compose \
   --file "${REPO_DIR}/docker-compose.yaml" \
+  $( [[ -n "$COMPOSE_OVERRIDES_FILE" ]] && echo "--file $COMPOSE_OVERRIDES_FILE" ) \
   run \
   --rm \
   --interactive \
   --tty \
   --service-ports \
   "${SERVICE}" "$REQUESTED_SHELL"
+
+# 🧹 Clean up override file
+[[ -n "$COMPOSE_OVERRIDES_FILE" ]] && rm -f "$COMPOSE_OVERRIDES_FILE"
 
