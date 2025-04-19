@@ -18,22 +18,46 @@ _find_latest_container() {
 
 # 🔍 Parse arguments
 _parse_args() {
+  USER_PORTS=()
+
+  local POSITIONAL_ARGS=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --port)
+        if [[ -z "$2" || "$2" == --* ]]; then
+          echo "❌ Missing value for --port"
+          return 1
+        fi
+        USER_PORTS+=("$2")
+        shift 2
+        ;;
+      --help|-h)
+        echo "DESCRIPTION: dcrun will add an ephemeral container."
+        echo "DESCRIPTION: dcup runs a persistent container that must be stopped with dcstop or removed with dcdown."
+        echo "Usage:"
+        echo "  dcrun <service>:<tag> <shell> [--port HOST:CONTAINER ...]"
+        echo "  dcrun <service> <tag> <shell> [--port HOST:CONTAINER ...]"
+        echo "  dcrun <service> <shell>             # uses :latest"
+        echo
+        echo "  dcup <service>:<tag> <shell> [project] [--port HOST:CONTAINER ...]"
+        echo "  dcup <service> <tag> <shell> [project] [--port HOST:CONTAINER ...]"
+        echo "  dcup <service> <shell> [project]    # uses :latest"
+        return 1
+        ;;
+      *)
+        POSITIONAL_ARGS+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  # Restore positional args
+  set -- "${POSITIONAL_ARGS[@]}"
+
   local arg1="$1"
   local arg2="$2"
   local arg3="$3"
   local arg4="$4"
-
-  if [[ "$arg1" == "--help" || "$arg1" == "-h" ]]; then
-    echo "Usage:"
-    echo "  dcrun <service>:<tag> <shell>"
-    echo "  dcrun <service> <tag> <shell>"
-    echo "  dcrun <service> <shell>             # uses :latest"
-    echo
-    echo "  dcup <service>:<tag> <shell> [project]"
-    echo "  dcup <service> <tag> <shell> [project]"
-    echo "  dcup <service> <shell> [project]    # uses :latest"
-    return 1
-  fi
 
   if [[ "$arg1" == *:* ]]; then
     SERVICE="${arg1%%:*}"

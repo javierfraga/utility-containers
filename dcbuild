@@ -20,28 +20,35 @@ fi
 
 # 🆘 Help output
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-  echo "DESCRIPTION: Builds and pushes a multi-arch Docker image using buildx for a given service."
+  echo "DESCRIPTION: Builds and pushes a multi-arch Docker image using buildx for a given service and build stage."
   echo
   echo "USAGE:"
-  echo "  dcbuild <service> <version> [latest]"
+  echo "  dcbuild <service> <version> [latest] [stage]"
   echo
   echo "ARGUMENTS:"
   echo "  <service>      Name of the service directory (e.g., python, node, etc.)"
   echo "  <version>      Version tag to apply (e.g., v0.01)"
   echo "  [latest]       Optional — also tag the image as 'latest'"
+  echo "  [stage]        Optional — Dockerfile build stage to target (e.g., 'dev' or 'prod')"
+  echo "                 Defaults to '${DEFAULT_BUILD_TARGET}' if not provided or undefined."
   echo
-  echo "EXAMPLE:"
-  echo "  dcbuild python v0.01 latest"
+  echo "EXAMPLES:"
+  echo "  dcbuild node v0.01                    # builds dev stage (default)"
+  echo "  dcbuild node v0.01 latest             # builds dev stage, tags as latest"
+  echo "  dcbuild node v0.01 latest prod        # builds production stage"
   echo
-  echo "This will build:"
-  echo "  ${DOCKERHUB_NAMESPACE}/utilcntr-python:v0.01"
-  echo "  ${DOCKERHUB_NAMESPACE}/utilcntr-python:latest"
+  echo "This will build and push:"
+  echo "  ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-<service>:<version>"
+  echo "  ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-<service>:latest  (if specified)"
   exit 0
 fi
 
 SERVICE="$1"
 VERSION="$2"
-INCLUDE_LATEST="$3"
+TARGET_STAGE="$4"
+# default to "util" if not passed or not defined in .env
+BUILD_TARGET="${TARGET_STAGE:-${DEFAULT_BUILD_TARGET:-dev}}"
+echo "📦 Building stage: ${BUILD_TARGET}"
 
 if [[ -z "$SERVICE" || -z "$VERSION" ]]; then
   echo "❌ Usage: dcbuild <service> <version> [latest]"
@@ -75,6 +82,7 @@ fi
 echo "🏗 Building and pushing ${FULL_IMAGE}:${VERSION}..."
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
+  --target "${BUILD_TARGET}" \
   "${TAGS[@]}" \
   --push \
   "$SERVICE_PATH"

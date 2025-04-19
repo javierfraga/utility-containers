@@ -21,9 +21,13 @@ else
 fi
 
 # 🚀 Run an ephemeral container
-_parse_args "$1" "$2" "$3" || exit $?
+_parse_args "$@" || exit $?
 
+# Create full image name
 image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
+
+# export for docker-compose.yaml
+export FULL_IMAGE_TAG="${image}"  # 👈 makes it available to docker compose
 
 if [[ -z "$REQUESTED_SHELL" ]]; then
   echo "❌ You must provide a shell to run (e.g. sh, bash, zsh)"
@@ -35,10 +39,20 @@ _validate_shell "$image" "$REQUESTED_SHELL" || {
   exit 1
 }
 
+# 📦 Export PORT_MAPPINGS if provided via --port
+if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
+  PORT_MAPPINGS=$(IFS=, ; echo "${USER_PORTS[*]}")
+  export PORT_MAPPINGS
+  echo "💡 Overriding ports for service '$SERVICE':"
+  for p in "${USER_PORTS[@]}"; do
+    echo "  - $p"
+  done
+fi
 
 # Need this for docker-compose.yaml in --file option below
 export HOST_WORKDIR="$(pwd)"
-echo "🚀 Running: $image with shell: $REQUESTED_SHELL, in this location: $HOST_WORKDIR"
+echo "🚀 Running: $image with shell: $REQUESTED_SHELL"
+echo "🚀 Running: In this location: $HOST_WORKDIR"
 
 docker compose \
   --file "${REPO_DIR}/docker-compose.yaml" \
@@ -46,5 +60,6 @@ docker compose \
   --rm \
   --interactive \
   --tty \
+  --service-ports \
   "${SERVICE}" "$REQUESTED_SHELL"
 
