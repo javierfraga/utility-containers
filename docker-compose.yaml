@@ -13,7 +13,7 @@ services:
       - ${HOST_WORKDIR:-.}:/app
       - /app/node_modules
     ports:
-      - "3000:80"
+      - ${PORT_MAPPINGS:-3000:80}  # 👈 dynamic with fallback
     command: ["sh", "-i"]
 
   python:
