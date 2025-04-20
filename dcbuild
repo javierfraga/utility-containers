@@ -81,6 +81,7 @@ fi
 # 🚀 Build and push for multi-arch
 echo "🏗 Building and pushing ${FULL_IMAGE}:${VERSION}..."
 docker buildx build \
+  --no-cache \
   --platform linux/amd64,linux/arm64 \
   --target "${BUILD_TARGET}" \
   "${TAGS[@]}" \
