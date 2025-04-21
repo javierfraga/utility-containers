@@ -23,38 +23,45 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   echo "DESCRIPTION: Builds and pushes a multi-arch Docker image using buildx for a given service and build stage."
   echo
   echo "USAGE:"
-  echo "  dcbuild <service> <version> [latest] [stage]"
-  echo
-  echo "ARGUMENTS:"
-  echo "  <service>      Name of the service directory (e.g., python, node, etc.)"
-  echo "  <version>      Version tag to apply (e.g., v0.01)"
-  echo "  [latest]       Optional — also tag the image as 'latest'"
-  echo "  [stage]        Optional — Dockerfile build stage to target (e.g., 'dev' or 'prod')"
-  echo "                 Defaults to '${DEFAULT_BUILD_TARGET}' if not provided or undefined."
+  echo "  dcbuild <service> <tag1> [tag2 ...] [--stage <stage>]"
   echo
   echo "EXAMPLES:"
   echo "  dcbuild node v0.01                    # builds dev stage (default)"
   echo "  dcbuild node v0.01 latest             # builds dev stage, tags as latest"
-  echo "  dcbuild node v0.01 latest prod        # builds production stage"
+  echo "  dcbuild node v0.01 latest --stage prod"
   echo
   echo "This will build and push:"
-  echo "  ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-<service>:<version>"
-  echo "  ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-<service>:latest  (if specified)"
+  echo "  ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-<service>:<tag(s)>"
   exit 0
 fi
 
-SERVICE="$1"
-VERSION="$2"
-TARGET_STAGE="$4"
-# default to "util" if not passed or not defined in .env
-BUILD_TARGET="${TARGET_STAGE:-${DEFAULT_BUILD_TARGET:-dev}}"
-echo "📦 Building stage: ${BUILD_TARGET}"
+SERVICE="$1"; shift
 
-if [[ -z "$SERVICE" || -z "$VERSION" ]]; then
-  echo "❌ Usage: dcbuild <service> <version> [latest]"
+# 🔁 Parse positional args
+TAGS=()
+BUILD_TARGET="${DEFAULT_BUILD_TARGET:-dev}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --stage)
+      BUILD_TARGET="$2"
+      shift 2
+      ;;
+    *)
+      TAGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# ✅ Validate args
+if [[ -z "$SERVICE" || "${#TAGS[@]}" -eq 0 ]]; then
+  echo "❌ Usage: dcbuild <service> <tag1> [tag2 ...] [--stage <stage>]"
   echo "Try: dcbuild --help"
   exit 1
 fi
+
+echo "📦 Building stage: ${BUILD_TARGET}"
 
 IMAGE_NAME="utilcntr-${SERVICE}"
 FULL_IMAGE="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
@@ -72,19 +79,19 @@ if ! docker buildx inspect >/dev/null 2>&1; then
   docker buildx create --use
 fi
 
-# 🏗 Prepare tag arguments
-TAGS=( "--tag" "${FULL_IMAGE}:${VERSION}" )
-if [[ "$INCLUDE_LATEST" == "latest" ]]; then
-  TAGS+=( "--tag" "${FULL_IMAGE}:latest" )
-fi
+# 🏷 Prepare tags
+BUILD_TAG_ARGS=()
+for tag in "${TAGS[@]}"; do
+  echo "🏷 Adding tag: ${FULL_IMAGE}:${tag}"
+  BUILD_TAG_ARGS+=( "--tag" "${FULL_IMAGE}:${tag}" )
+done
 
 # 🚀 Build and push for multi-arch
-echo "🏗 Building and pushing ${FULL_IMAGE}:${VERSION}..."
 docker buildx build \
   --no-cache \
   --platform linux/amd64,linux/arm64 \
   --target "${BUILD_TARGET}" \
-  "${TAGS[@]}" \
+  "${BUILD_TAG_ARGS[@]}" \
   --push \
   "$SERVICE_PATH"
 
