@@ -43,6 +43,7 @@ RUN apt-get update && \
       tree \
       # neovim \ # this fails the build, install below, see below
       dumb-init && \
+    git clone https://github.com/MenkeTechnologies/zsh-expand "$HOME"/.zsh/zsh-expand && \
     git clone https://github.com/zsh-users/zsh-completions.git /usr/local/share/zsh-completions && \
     chmod -R 755 /usr/local/share/zsh-completions && \
     ln -s $(which fdfind) /usr/local/bin/fd && \
