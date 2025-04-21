@@ -52,6 +52,7 @@ RUN apt-get update && \
     git submodule update --remote --merge && \
     mv "$HOME"/.bashrc "$HOME"/.bashrc.bak && \
     stow --target="$HOME" stow-target-files && \
+    git config --global commit.template "$HOME/.config/git/commit-template.txt" && \
     "$HOME"/dotfiles/nvim/pack/nvim-plugins/start/run-me.sh && \
     rm -rf /var/lib/apt/lists/*
 
