@@ -26,6 +26,9 @@ COPY ./Dockerfile ./app.mjs ./readme.md ./package*.json ./
 # ============
 FROM base AS dev
 
+# Special filter: docker image prune --all --filter "label=keep=true"
+LABEL keep=true
+
 # Override to dev mode
 ENV NODE_ENV=development
 
