@@ -75,6 +75,12 @@ RUN set -e && \
     ln -sf /opt/nvim/nvim-*/bin/nvim /usr/local/bin/nvim && \
     cd / && rm -rf /opt/build
 
+# Install LunarVim without Python or Rust support
+# printf are prompt answers
+RUN bash -c ' \
+  LV_BRANCH="release-1.4/neovim-0.9"; \
+  printf "yes\nno\nno\n" | bash <(curl -s https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.4/neovim-0.9/utils/installer/install.sh) '
+
 # ✅ Stay as root
 # USER ${USERNAME} ← ❌ Remove this
 USER root
