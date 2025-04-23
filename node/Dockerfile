@@ -6,10 +6,13 @@ FROM node:latest AS base
 ARG USERNAME=node
 ARG UID=1000
 ARG GID=1000
+# Get values from Compose .env
+ARG APP_DIR
+ARG FILES_DIR
 
 ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \
-    APP_DIR="/app" \
-    MNT_DIR="/mnt" \
+    APP_DIR=${APP_DIR} \
+    FILES_DIR=${FILES_DIR} \
     NODE_ENV=production
 
 # Don't need this node image already has user I can use
@@ -18,7 +21,7 @@ ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \
 #  && useradd --uid "${UID}" --gid "${GID}" --create-home --shell /bin/bash "${USERNAME}"
 
 # Mount here so can copy and Bind Mount (in dev) will not overwrite these files
-WORKDIR ${MNT_DIR}
+WORKDIR ${FILES_DIR}
 COPY ./Dockerfile ./app.mjs ./readme.md ./package*.json ./
 
 # ============
@@ -109,7 +112,7 @@ USER root
 WORKDIR ${APP_DIR}
 
 # Anonymous volume for node_modules to isolate from host
-VOLUME ["/app/node_modules"]
+VOLUME ["${APP_DIR}/node_modules"]
 
 # For dev servers listening on port 80
 EXPOSE 80

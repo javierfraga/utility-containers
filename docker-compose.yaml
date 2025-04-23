@@ -4,14 +4,16 @@ services:
     build:
       context: ./node
       target: ${DEFAULT_BUILD_TARGET}
-    # image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-node # only needs this if always uses :latest
-    working_dir: /app
+      args:
+        APP_DIR: ${APP_DIR}
+        FILES_DIR: ${FILES_DIR}
+    working_dir: ${APP_DIR}
     entrypoint: ["dumb-init", "--"]  # ✅ explicitly set entrypoint
     stdin_open: true
     tty: true
     volumes:
-      - ${HOST_WORKDIR:-.}:/app
-      - /app/node_modules
+      - ${HOST_WORKDIR:-.}:${APP_DIR}
+      - ${APP_DIR}/node_modules
     ports:
       - ${PORT_MAPPINGS:-3000:80}  # 👈 dynamic with fallback
     command: ["sh", "-i"]
@@ -20,31 +22,31 @@ services:
     build:
       context: ./python
     image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-python
-    working_dir: /app
+    working_dir: ${APP_DIR}
     stdin_open: true
     tty: true
     volumes:
-      - ${HOST_WORKDIR:-.}:/app
+      - ${HOST_WORKDIR:-.}:${APP_DIR}
 
   arch:
     build:
       context: ./arch
     image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-arch
-    working_dir: /mnt
+    working_dir: ${APP_DIR}
     stdin_open: true
     tty: true
     volumes:
-      - ${HOST_WORKDIR:-.}:/mnt
+      - ${HOST_WORKDIR:-.}:${APP_DIR}
       - /var/run/docker.sock:/var/run/docker.sock  # enable docker passthru
 
   debian:
     build:
       context: ./debian
     image: ${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-debian
-    working_dir: /mnt
+    working_dir: ${APP_DIR}
     stdin_open: true
     tty: true
     volumes:
-      - ${HOST_WORKDIR:-.}:/mnt
+      - ${HOST_WORKDIR:-.}:${APP_DIR}
       - /var/run/docker.sock:/var/run/docker.sock  # enable docker passthru
 
