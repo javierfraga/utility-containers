@@ -6,7 +6,7 @@ FROM node:latest AS base
 ARG USERNAME=node
 ARG UID=1000
 ARG GID=1000
-# Get values from Compose .env
+# Get values from .env -> dcbuild -> here:
 ARG APP_DIR
 ARG FILES_DIR
 

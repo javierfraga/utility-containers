@@ -79,6 +79,12 @@ if ! docker buildx inspect >/dev/null 2>&1; then
   docker buildx create --use
 fi
 
+# 🧱 Pass build arguments from .env
+BUILD_ARG_FLAGS=(
+  "--build-arg" "APP_DIR=${APP_DIR}"
+  "--build-arg" "FILES_DIR=${FILES_DIR}"
+)
+
 # 🏷 Prepare tags
 BUILD_TAG_ARGS=()
 for tag in "${TAGS[@]}"; do
@@ -91,7 +97,7 @@ docker buildx build \
   --no-cache \
   --platform linux/amd64,linux/arm64 \
   --target "${BUILD_TARGET}" \
+  "${BUILD_ARG_FLAGS[@]}" \
   "${BUILD_TAG_ARGS[@]}" \
   --push \
   "$SERVICE_PATH"
-
