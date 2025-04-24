@@ -45,6 +45,7 @@ RUN apt-get update && \
       git \
       fd-find \
       lf \
+      jq \
       iproute2 \
       zsh-autosuggestions \
       zsh-syntax-highlighting \
