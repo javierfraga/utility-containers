@@ -31,15 +31,24 @@ export FULL_IMAGE_TAG="${image}"  # 👈 makes it available to docker compose
 
 project="${PROJECT_NAME:-$(basename "$PWD")}"
 
+# 🌟 Default shell logic (zsh > bash > sh)
 if [[ -z "$REQUESTED_SHELL" ]]; then
-  echo "❌ You must provide a shell to run (e.g. sh, bash, zsh)"
-  exit 1
+  for shell in zsh bash sh; do
+    if _validate_shell "$image" "$shell"; then
+      REQUESTED_SHELL="$shell"
+      break
+    fi
+  done
+  if [[ -z "$REQUESTED_SHELL" ]]; then
+    echo "❌ No supported shell found in image: $image"
+    exit 1
+  fi
+else
+  _validate_shell "$image" "$REQUESTED_SHELL" || {
+    echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
+    exit 1
+  }
 fi
-
-_validate_shell "$image" "$REQUESTED_SHELL" || {
-  echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
-  exit 1
-}
 
 # 📦 Export PORT_MAPPINGS if provided via --port
 if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
