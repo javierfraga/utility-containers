@@ -12,6 +12,7 @@ services:
     volumes:
       - ${HOST_WORKDIR:-.}:/app
       - /app/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock  # enable docker passthru
     ports:
       - ${PORT_MAPPINGS:-3000:80}  # 👈 dynamic with fallback
     command: ["sh", "-i"]
