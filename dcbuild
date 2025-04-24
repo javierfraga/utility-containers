@@ -1,17 +1,27 @@
 #!/bin/bash
 
 # 📍 Resolve absolute path to script directory (even if symlinked)
+
+# Get the source of the script: BASH_SOURCE[0] if available, else fallback to $0
 SOURCE="${BASH_SOURCE[0]:-$0}"
+
+# Follow symlinks until we reach the real file
 while [ -h "$SOURCE" ]; do
+  # Get the directory that contains the symlink
   DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  # Resolve the symlink target
   SOURCE="$(readlink "$SOURCE")"
+  # If the resolved path is relative, prepend the directory to make it absolute
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
+
+# Get the absolute path of the script's directory after resolving all symlinks
 SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
 
 # 📥 Load environment variables
 ENV_FILE="${SCRIPT_DIR}/.env"
 if [[ -f "$ENV_FILE" ]]; then
+  # All variables now availble here
   source "$ENV_FILE"
 else
   echo "❌ Missing .env file: $ENV_FILE"
@@ -35,26 +45,32 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   exit 0
 fi
 
-SERVICE="$1"; shift
+SERVICE="$1"  # Grab the first positional argument
+shift         # Shift all arguments to the left
 
 # 🔁 Parse positional args
 TAGS=()
+# DEFAULT_BUILD_TARGET from .env, `dev` is default
 BUILD_TARGET="${DEFAULT_BUILD_TARGET:-dev}"
 
+# 🔁 Loop over all remaining command-line arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    # 🎯 If the argument is --stage, capture the next arg as the build stage
     --stage)
-      BUILD_TARGET="$2"
-      shift 2
+      BUILD_TARGET="$2"  # Assign the value after --stage to BUILD_TARGET
+      shift 2            # Shift past both --stage and its value
       ;;
+    # 🏷 Otherwise, treat the argument as a tag (like v0.01 or latest)
     *)
-      TAGS+=("$1")
-      shift
+      TAGS+=("$1")       # Append current arg to the TAGS array
+      shift              # Shift past this argument
       ;;
   esac
 done
 
 # ✅ Validate args
+# is $SERVICE var empty? is TAGS array also empty, i.e. 0?
 if [[ -z "$SERVICE" || "${#TAGS[@]}" -eq 0 ]]; then
   echo "❌ Usage: dcbuild <service> <tag1> [tag2 ...] [--stage <stage>]"
   echo "Try: dcbuild --help"
@@ -63,8 +79,11 @@ fi
 
 echo "📦 Building stage: ${BUILD_TARGET}"
 
-IMAGE_NAME="utilcntr-${SERVICE}"
+# e.g. utilcntr-node
+IMAGE_NAME="${IMAGE_PREFIX}-${SERVICE}"
+# e.g. javierfraga/utilcntr-node
 FULL_IMAGE="${DOCKERHUB_NAMESPACE}/${IMAGE_NAME}"
+# e.g. ~/.*/utiilty-containers/node
 SERVICE_PATH="${SCRIPT_DIR}/${SERVICE}"
 
 # 🔍 Check if service directory exists
