@@ -1,5 +1,9 @@
 #!/bin/bash
 
+########################################################################
+# 🛠️ helpers.sh: Shared utilities for dcup/dcrun workflows
+########################################################################
+
 # 🔍 Get most recently started container for a service
 _find_latest_container() {
   local service="$1"
@@ -16,7 +20,7 @@ _find_latest_container() {
   echo "$name"
 }
 
-# 🔍 Parse arguments
+# 🔍 Parse arguments (dcup / dcrun shared)
 _parse_args() {
   USER_PORTS=()
 
@@ -32,16 +36,18 @@ _parse_args() {
         shift 2
         ;;
       --help|-h)
-        echo "DESCRIPTION: dcrun will add an ephemeral container."
-        echo "DESCRIPTION: dcup runs a persistent container that must be stopped with dcstop or removed with dcdown."
-        echo "Usage:"
-        echo "  dcrun <service>:<tag> <shell> [--port HOST:CONTAINER ...]"
-        echo "  dcrun <service> <tag> <shell> [--port HOST:CONTAINER ...]"
-        echo "  dcrun <service> <shell>             # uses :latest"
+        echo "DESCRIPTION:"
+        echo "  🌀 dcrun  → Runs an ephemeral interactive container with a shell (default: zsh)"
+        echo "  🔁 dcup   → Runs a persistent container (detached), then attaches with a shell (default: zsh)"
         echo
-        echo "  dcup <service>:<tag> <shell> [project] [--port HOST:CONTAINER ...]"
-        echo "  dcup <service> <tag> <shell> [project] [--port HOST:CONTAINER ...]"
-        echo "  dcup <service> <shell> [project]    # uses :latest"
+        echo "USAGE:"
+        echo "  dcrun <service>:<tag> [shell] [--port HOST:CONTAINER ...]"
+        echo "  dcrun <service> <tag> [shell] [--port ...]"
+        echo "  dcrun <service> [shell]           # defaults to latest + zsh"
+        echo
+        echo "  dcup <service>:<tag> [shell] [project] [--port ...]"
+        echo "  dcup <service> <tag> [shell] [project]"
+        echo "  dcup <service> [shell] [project]  # defaults to latest + zsh"
         return 1
         ;;
       *)
@@ -53,31 +59,31 @@ _parse_args() {
 
   # Restore positional args
   set -- "${POSITIONAL_ARGS[@]}"
-
-  local arg1="$1"
-  local arg2="$2"
-  local arg3="$3"
-  local arg4="$4"
+  local arg1="$1" arg2="$2" arg3="$3" arg4="$4"
 
   if [[ "$arg1" == *:* ]]; then
     SERVICE="${arg1%%:*}"
     IMAGE_TAG="${arg1#*:}"
-    REQUESTED_SHELL="$arg2"
+    REQUESTED_SHELL="${arg2:-zsh}"
     PROJECT_NAME="$3"
   else
     SERVICE="$arg1"
-    if [[ "$arg2" =~ ^(sh|bash|zsh)$ ]]; then
-      IMAGE_TAG="latest"
-      REQUESTED_SHELL="$arg2"
-      PROJECT_NAME="$3"
-    else
-      IMAGE_TAG="${arg2:-latest}"
-      REQUESTED_SHELL="$arg3"
-      PROJECT_NAME="$4"
-    fi
+    case "$arg2" in
+      sh|bash|zsh)
+        IMAGE_TAG="latest"
+        REQUESTED_SHELL="$arg2"
+        PROJECT_NAME="$3"
+        ;;
+      *)
+        IMAGE_TAG="${arg2:-latest}"
+        REQUESTED_SHELL="${arg3:-zsh}"
+        PROJECT_NAME="$4"
+        ;;
+    esac
   fi
 
   IMAGE_TAG="${IMAGE_TAG:-latest}"
+  REQUESTED_SHELL="${REQUESTED_SHELL:-zsh}"  # Final fallback
 }
 
 # ❗ Ensure the shell exists in the image
