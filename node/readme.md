@@ -1,8 +1,8 @@
-- `/mnt` has the starter files
-- `/app` is the `WORKDIR`
+- `/files` has the starter files
+- `/mnt` is the `WORKDIR`
 # Run the following in order:
 ```bash
-cp /mnt/* .
+cp /files/* .
 npm init
 npm install express
 npm install --save-dev nodemon
