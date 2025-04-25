@@ -1,35 +1,55 @@
 #!/bin/bash
 
-# 📍 Resolve absolute path to this script
+# 📍 Resolve absolute path to script directory (even if symlinked)
+
+# Get the source of the script: BASH_SOURCE[0] if available, else fallback to $0
 SOURCE="${BASH_SOURCE[0]:-$0}"
+
+# Follow symlinks until we reach the real file
 while [ -h "$SOURCE" ]; do
+  # Get the directory that contains the symlink
   DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  # Resolve the symlink target
   SOURCE="$(readlink "$SOURCE")"
+  # If the resolved path is relative, prepend the directory to make it absolute
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
-REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"  # Final resolved script location
 
-# 🔗 Load helpers
+# 🔗 Load helper functions (e.g., _parse_args, _validate_shell)
 source "${REPO_DIR}/helpers.sh"
 
-# 🔗 Load env vars (DOCKERHUB_NAMESPACE, IMAGE_PREFIX)
+# 🔗 Load environment variables from .env (e.g., IMAGE_PREFIX, DOCKERHUB_NAMESPACE)
 if [[ -f "${REPO_DIR}/.env" ]]; then
+  # All variables now availble here
   source "${REPO_DIR}/.env"
 else
   echo "❌ Missing .env file at ${REPO_DIR}/.env"
   exit 1
 fi
 
-# 🚀 Run an ephemeral container
+#############################################
+# 🔧 Run ephemeral container for a project  #
+#############################################
+
+# 🚀 Parse positional args and --port values into structured variables
+# Sets: SERVICE, IMAGE_TAG, REQUESTED_SHELL, USER_PORTS, etc.
+# 🔧 Parse arguments passed to script (e.g. service, tag, shell, project, --port)
+# This sets:
+#   - SERVICE           → e.g. node
+#   - IMAGE_TAG         → e.g. latest or v0.01
+#   - REQUESTED_SHELL   → zsh, bash, sh
+#   - PROJECT_NAME      → optional override for docker-compose project name
+#   - USER_PORTS        → array of any --port mappings
 _parse_args "$@" || exit $?
 
-# Create full image name
+# 🖼 Compose full image name from namespace, service, and tag (e.g., javierfraga/utilcntr-node:latest)
 image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
 
-# export for docker-compose.yaml
-export FULL_IMAGE_TAG="${image}"  # 👈 makes it available to docker compose
+# 🧪 Export the image tag for use in docker-compose.yaml with ${FULL_IMAGE_TAG}
+export FULL_IMAGE_TAG="${image}"  # 👈 lets Compose use the dynamic image
 
-# 🌟 Default shell logic (zsh > bash > sh)
+# 🌟 If no shell specified, attempt to fall back to preferred shells in order: zsh > bash > sh
 if [[ -z "$REQUESTED_SHELL" ]]; then
   for shell in zsh bash sh; do
     if _validate_shell "$image" "$shell"; then
@@ -37,38 +57,48 @@ if [[ -z "$REQUESTED_SHELL" ]]; then
       break
     fi
   done
+
+  # ❌ Still no shell found — exit with error
   if [[ -z "$REQUESTED_SHELL" ]]; then
     echo "❌ No supported shell found in image: $image"
     exit 1
   fi
+
 else
+  # ✅ If a shell was requested explicitly, validate that it exists in the image
   _validate_shell "$image" "$REQUESTED_SHELL" || {
     echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
     exit 1
   }
 fi
 
-# 📦 Export PORT_MAPPINGS if provided via --port
+# 📦 Handle dynamic port overrides (e.g., --port 3000:80 --port 9229:9229)
 if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
+  # Join the array into a comma-separated string for Compose (e.g., 3000:80,9229:9229)
+  # IFS (internal field separator) temporarily set to comma
   PORT_MAPPINGS=$(IFS=, ; echo "${USER_PORTS[*]}")
   export PORT_MAPPINGS
+
+  # 📣 Show what was overridden
   echo "💡 Overriding ports for service '$SERVICE':"
   for p in "${USER_PORTS[@]}"; do
     echo "  - $p"
   done
 fi
 
-# Need this for docker-compose.yaml in --file option below
+# 💻 Store the host path we're running from so Compose can bind-mount it as working_dir
 export HOST_WORKDIR="$(pwd)"
+
 echo "🚀 Running: $image with shell: $REQUESTED_SHELL"
 echo "🚀 Running: In this location: $HOST_WORKDIR"
 
+# 🐳 Run container using docker compose run (ephemeral)
 docker compose \
-  --file "${REPO_DIR}/docker-compose.yaml" \
+  --file "${REPO_DIR}/docker-compose.yaml" \     # Use project-wide compose file
   run \
-  --rm \
-  --interactive \
-  --tty \
-  --service-ports \
-  "${SERVICE}" "$REQUESTED_SHELL"
+  --rm \                                          # Delete container after exit
+  --interactive \                                 # Keep STDIN open
+  --tty \                                         # Allocate a TTY (for shell)
+  --service-ports \                               # Map ports defined in compose (plus overrides)
+  "${SERVICE}" "$REQUESTED_SHELL"                 # Run service with chosen shell
 
