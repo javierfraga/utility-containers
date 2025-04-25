@@ -34,7 +34,7 @@ projects=("$@")
 # This allows you to simply run `dcstart` inside a project folder without arguments
 [[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
 
-# 🔁 Loop over each project and shut it down
+# 🔁 Loop over each project and start it
 for project in "${projects[@]}"; do
   echo "🟢 Starting all containers in project: $project"
   docker compose \
