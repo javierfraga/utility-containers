@@ -1,13 +1,19 @@
 #!/bin/bash
 
-# 📍 Resolve absolute path
+# 📍 Resolve absolute path to script directory (even if symlinked)
+# Get the source of the script: BASH_SOURCE[0] if available, else fallback to $0
 SOURCE="${BASH_SOURCE[0]:-$0}"
+
+# Follow symlinks until we reach the real file
 while [ -h "$SOURCE" ]; do
+  # Get the directory that contains the symlink
   DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  # Resolve the symlink target
   SOURCE="$(readlink "$SOURCE")"
+  # If the resolved path is relative, prepend the directory to make it absolute
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
-REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"  # Final resolved script location
 
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   echo "DESCRIPTION: Applies a protection label (keep=true) to containers in one or more projects."
@@ -20,24 +26,36 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   echo "  => sets keep=true on: myproject-node-1, tmp-node-1, etc."
   exit 0
 fi
-
+#
+# 🧳 Store all positional arguments (project names) into an array
+# This supports multiple projects, e.g., `dcupdate-labelkeep proj1 proj2`
 projects=("$@")
+
+# 📂 If no projects were passed in, default to the current directory name
+# This allows running `dcupdate-labelkeep` inside a project folder without needing arguments
 [[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
 
+# 🔁 Iterate through each project in the list
 for project in "${projects[@]}"; do
   echo "🔒 Protecting containers in project: $project"
+
+  # 🧼 Get list of all containers that belong to the project (by prefix matching)
+  # Example: if project is "nodeproj", match "nodeproj-node-1", etc.
   containers=$(docker ps --all --filter "name=^${project}-" --format '{{.Names}}')
 
+  # 🛑 Skip if no containers were found for this project
   if [[ -z "$containers" ]]; then
     echo "❌ No containers found for project '${project}'"
     continue
   fi
 
+  # 🔁 Loop through all matched containers and apply a `keep=true` label
   for container in $containers; do
     echo "📌 Applying 'keep=true' to: $container"
     docker container update --label-add keep=true "$container"
   done
 done
 
+# ✅ Final confirmation message after all containers are labeled
 echo "✅ Protection labels applied."
 
