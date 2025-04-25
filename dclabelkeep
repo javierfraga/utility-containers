@@ -18,21 +18,21 @@ REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"  # Final resol
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   echo "DESCRIPTION: Applies a protection label (keep=true) to containers in one or more projects."
   echo "Usage:"
-  echo "  dcupdate-labelkeep                    # protects current project"
-  echo "  dcupdate-labelkeep <proj1> [proj2]    # protects multiple projects"
+  echo "  dclabelkeep                    # protects current project"
+  echo "  dclabelkeep <proj1> [proj2]    # protects multiple projects"
   echo
   echo "Example:"
-  echo "  dcupdate-labelkeep myproject tmp"
+  echo "  dclabelkeep myproject tmp"
   echo "  => sets keep=true on: myproject-node-1, tmp-node-1, etc."
   exit 0
 fi
 #
 # 🧳 Store all positional arguments (project names) into an array
-# This supports multiple projects, e.g., `dcupdate-labelkeep proj1 proj2`
+# This supports multiple projects, e.g., `dclabelkeep proj1 proj2`
 projects=("$@")
 
 # 📂 If no projects were passed in, default to the current directory name
-# This allows running `dcupdate-labelkeep` inside a project folder without needing arguments
+# This allows running `dclabelkeep` inside a project folder without needing arguments
 [[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
 
 # 🔁 Iterate through each project in the list
