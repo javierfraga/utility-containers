@@ -1,37 +1,56 @@
 #!/bin/bash
 
-# 📍 Resolve absolute path to this script
+# 📍 Resolve absolute path to script directory (even if symlinked)
+# Get the source of the script: BASH_SOURCE[0] if available, else fallback to $0
 SOURCE="${BASH_SOURCE[0]:-$0}"
+
+# Follow symlinks until we reach the real file
 while [ -h "$SOURCE" ]; do
+  # Get the directory that contains the symlink
   DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  # Resolve the symlink target
   SOURCE="$(readlink "$SOURCE")"
+  # If the resolved path is relative, prepend the directory to make it absolute
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
-REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"  # Final resolved script location
 
-# 🔗 Load helpers
+# 🔗 Load helper functions (e.g. _parse_args, _validate_shell, _find_latest_container)
 source "${REPO_DIR}/helpers.sh"
 
-# 🔗 Load env vars (DOCKERHUB_NAMESPACE, IMAGE_PREFIX)
+# 🔗 Load .env for Docker-related environment variables (e.g. IMAGE_PREFIX, DOCKERHUB_NAMESPACE)
 if [[ -f "${REPO_DIR}/.env" ]]; then
+  # All variables now availble here
   source "${REPO_DIR}/.env"
 else
   echo "❌ Missing .env file at ${REPO_DIR}/.env"
   exit 1
 fi
 
-# 🔧 Run persistent container for a project
+
+#############################################
+# 🔧 Run persistent container for a project #
+#############################################
+
+# 🔧 Parse arguments passed to script (e.g. service, tag, shell, project, --port)
+# This sets:
+#   - SERVICE           → e.g. node
+#   - IMAGE_TAG         → e.g. latest or v0.01
+#   - REQUESTED_SHELL   → zsh, bash, sh
+#   - PROJECT_NAME      → optional override for docker-compose project name
+#   - USER_PORTS        → array of any --port mappings
 _parse_args "$@" || exit $?
 
-# Create full image name
+# 🏗 Construct full image tag, e.g. javierfraga/utilcntr-node:latest
 image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
 
-# export for docker-compose.yaml
-export FULL_IMAGE_TAG="${image}"  # 👈 makes it available to docker compose
+# 🌍 Export image name for use in docker-compose.yaml as ${FULL_IMAGE_TAG}
+export FULL_IMAGE_TAG="${image}"  # 👈 Injects into Compose as environment variable
 
+# 📛 Determine Compose project name. Use PROJECT_NAME if set, otherwise fallback to current directory name.
 project="${PROJECT_NAME:-$(basename "$PWD")}"
 
-# 🌟 Default shell logic (zsh > bash > sh)
+# 🌟 Auto-detect preferred shell from image (zsh > bash > sh), if one wasn't explicitly provided
 if [[ -z "$REQUESTED_SHELL" ]]; then
   for shell in zsh bash sh; do
     if _validate_shell "$image" "$shell"; then
@@ -39,32 +58,45 @@ if [[ -z "$REQUESTED_SHELL" ]]; then
       break
     fi
   done
+
+  # ❌ If no shell found in image, exit with error
   if [[ -z "$REQUESTED_SHELL" ]]; then
     echo "❌ No supported shell found in image: $image"
     exit 1
   fi
+
 else
+  # ✅ Validate explicitly requested shell exists in image
   _validate_shell "$image" "$REQUESTED_SHELL" || {
     echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
     exit 1
   }
 fi
 
-# 📦 Export PORT_MAPPINGS if provided via --port
+# 📦 Handle dynamic port overrides (e.g., --port 3000:80 --port 9229:9229)
 if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
+  # Join the array into a comma-separated string for Compose (e.g., 3000:80,9229:9229)
+  # IFS (internal field separator) temporarily set to comma
   PORT_MAPPINGS=$(IFS=, ; echo "${USER_PORTS[*]}")
-  export PORT_MAPPINGS
+  export PORT_MAPPINGS  # Used inside docker-compose.yaml
   echo "💡 Overriding ports for service '$SERVICE':"
   for p in "${USER_PORTS[@]}"; do
     echo "  - $p"
   done
 fi
 
-# Need this for docker-compose.yaml in --file option below
+# 🗂 Set the current host working directory to mount into container at runtime
 export HOST_WORKDIR="$(pwd)"
+
+# 🧱 Run the container with Docker Compose
 echo "🔧 Starting: $image (project: $project)"
 echo "🔧 Starting: In this location: $HOST_WORKDIR"
 
+# 🐳 Init container using docker compose up (persistent)
+#  --file "${REPO_DIR}/docker-compose.yaml" :   # Use your custom Compose file
+#  --project-name "$project" :  # Set custom project name (so container is prefixed)
+#  --detach :  # Run in background
+#  "${SERVICE}" :  # Only run this service
 docker compose \
   --file "${REPO_DIR}/docker-compose.yaml" \
   --project-name "$project" \
@@ -72,8 +104,13 @@ docker compose \
   --detach \
   "${SERVICE}"
 
+# 🔍 Find the name of the most recent container started for this service
 container=$(_find_latest_container "$SERVICE") || exit 1
 
+# 🛠 Attach an interactive shell to the container after it's started
+  # --interactive :                   # Keep STDIN open
+  # --tty :                           # Allocate a TTY (for shell)
+  # "$container" "$REQUESTED_SHELL" : # Run container with chosen shell
 echo "🛠  Attaching to container: $container"
 docker exec \
   --interactive \
