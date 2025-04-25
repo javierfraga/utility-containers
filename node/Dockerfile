@@ -1,7 +1,8 @@
 # ===========
 # BASE STAGE
 # ===========
-FROM node:latest AS base  # Use official latest Node.js image as base
+# Use official latest Node.js image as base
+FROM node:latest AS base  
 
 # Accept build-time variables for user and folder structure
 ARG USERNAME=node
@@ -13,12 +14,16 @@ ARG APP_DIR               # Default bind-mounted working directory (e.g., /mnt)
 ARG FILES_DIR             # Location for copying files into image (e.g., /files)
 
 # Define environment variables used in the container
-ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \  # Add local bin to PATH
-    APP_DIR=${APP_DIR} \                         # Set app directory env var
-    FILES_DIR=${FILES_DIR} \                     # Set files directory env var
-    NODE_ENV=production                          # Default to production environment
+# PATH="/home/${USERNAME}/.local/bin:$PATH" :  # Add local bin to PATH
+# APP_DIR=${APP_DIR} :                         # Set app directory env var
+# FILES_DIR=${FILES_DIR} :                     # Set files directory env var
+# NODE_ENV=production :                        # Default to production environment
+ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \
+    APP_DIR=${APP_DIR} \
+    FILES_DIR=${FILES_DIR} \
+    NODE_ENV=production
 
-# 🧑‍💻 Optional non-root user — not needed in Node image, so skipped here
+# 🧑💻 Optional non-root user — not needed in Node image, so skipped here
 
 # Use /files to avoid conflicts with /mnt bind-mount in dev
 WORKDIR ${FILES_DIR}
@@ -41,32 +46,49 @@ FROM base AS dev
 ENV NODE_ENV=development
 
 # 🧰 Install dev tools, plugins, dotfiles
+# zsh :                     # Default shell
+# git :                     # Git for dotfiles and source
+# fd-find :                 # Fast find replacement
+# lf :                      # Terminal file manager
+# jq :                      # JSON processor
+# iproute2 :                # Networking commands
+# zsh-autosuggestions :     # Zsh plugin
+# zsh-syntax-highlighting : # Another zsh plugin
+# stow :                    # For managing dotfiles
+# man-db :                  # Manual page support
+# tree :                    # Directory visualization
+# dumb-init && :            # PID 1 helper (used in ENTRYPOINT)
+# ln -s $(which fdfind) /usr/local/bin/fd && :   # Rename `fdfine` to `fd`
+# mv "$HOME"/.bashrc "$HOME"/.bashrc.bak && :    # Move .bashrc, prevents stow symlinks
+# stow --target="$HOME" stow-target-files && :   # Apply dotfiles via stow
+# rm -rf /var/lib/apt/lists/*                    # Reduce image size
+
 RUN apt-get update && \
     apt-get install --no-install-recommends --yes \
-      zsh \                                # Default shell
-      git \                                # Git for dotfiles and source
-      fd-find \                            # Fast find replacement
-      lf \                                 # Terminal file manager
-      jq \                                 # JSON processor
-      iproute2 \                           # Networking commands
-      zsh-autosuggestions \                # Zsh plugin
-      zsh-syntax-highlighting \           # Another zsh plugin
-      stow \                               # For managing dotfiles
-      man-db \                             # Manual page support
-      tree \                               # Directory visualization
-      dumb-init && \                       # PID 1 helper (used in ENTRYPOINT)
+      zsh \
+      git \
+      fd-find \
+      lf \
+      jq \
+      iproute2 \
+      zsh-autosuggestions \
+      zsh-syntax-highlighting \
+      stow \
+      man-db \
+      tree \
+      dumb-init && \
     git clone https://github.com/MenkeTechnologies/zsh-expand "$HOME"/.zsh/zsh-expand && \
     git clone https://github.com/zsh-users/zsh-completions.git /usr/local/share/zsh-completions && \
     chmod -R 755 /usr/local/share/zsh-completions && \
-    ln -s $(which fdfind) /usr/local/bin/fd && \   # Rename `fdfine` to `fd`
+    ln -s $(which fdfind) /usr/local/bin/fd && \
     git clone --recurse-submodules https://gitlab.com/javierfraga/dotfiles.git "$HOME"/dotfiles && \
     cd "$HOME"/dotfiles && \
     git submodule update --remote --merge && \
-    mv "$HOME"/.bashrc "$HOME"/.bashrc.bak && \    # Move .bashrc, prevents stow symlinks
-    stow --target="$HOME" stow-target-files && \   # Apply dotfiles via stow
+    mv "$HOME"/.bashrc "$HOME"/.bashrc.bak && \
+    stow --target="$HOME" stow-target-files && \
     git config --global commit.template "$HOME/.config/git/commit-template.txt" && \
     "$HOME"/dotfiles/nvim/pack/nvim-plugins/start/run-me.sh && \
-    rm -rf /var/lib/apt/lists/*                    # Reduce image size
+    rm -rf /var/lib/apt/lists/*
 
 # ✅ Install Neovim manually by platform (useful if apt version is outdated)
 ARG TARGETPLATFORM

@@ -37,9 +37,12 @@ projects=("$@")
 # 🔁 Loop over each project and pause it
 for project in "${projects[@]}"; do
   echo "🛑 Stopping all containers in project: $project"
+  # 🔻 Pauses (but stays persistent in dockerps) containers, networks, volumes for this project
+  #  --file "${REPO_DIR}/docker-compose.yaml" \  # Specify main compose file explicitly
+  #  --project-name "$project" \  # Override project name (instead of defaulting to directory)
   docker compose \
-    --file "${REPO_DIR}/docker-compose.yaml" \  # Specify main compose file explicitly
-    --project-name "$project" \  # Override project name (instead of defaulting to directory)
-    stop  # 🔻 Pauses (but stays persistent in dockerps) containers, networks, volumes for this project
+    --file "${REPO_DIR}/docker-compose.yaml" \
+    --project-name "$project" \
+    stop
 done
 

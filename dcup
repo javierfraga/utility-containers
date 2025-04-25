@@ -92,20 +92,28 @@ export HOST_WORKDIR="$(pwd)"
 echo "🔧 Starting: $image (project: $project)"
 echo "🔧 Starting: In this location: $HOST_WORKDIR"
 
+# 🐳 Init container using docker compose up (persistent)
+#  --file "${REPO_DIR}/docker-compose.yaml" :   # Use your custom Compose file
+#  --project-name "$project" :  # Set custom project name (so container is prefixed)
+#  --detach :  # Run in background
+#  "${SERVICE}" :  # Only run this service
 docker compose \
-  --file "${REPO_DIR}/docker-compose.yaml" \   # Use your custom Compose file
-  --project-name "$project" \                  # Set custom project name (so container is prefixed)
-  up \                                         # Start containers
-  --detach \                                   # Run in background
-  "${SERVICE}"                                 # Only run this service
+  --file "${REPO_DIR}/docker-compose.yaml" \
+  --project-name "$project" \
+  up \
+  --detach \
+  "${SERVICE}"
 
 # 🔍 Find the name of the most recent container started for this service
 container=$(_find_latest_container "$SERVICE") || exit 1
 
 # 🛠 Attach an interactive shell to the container after it's started
+  # --interactive :                   # Keep STDIN open
+  # --tty :                           # Allocate a TTY (for shell)
+  # "$container" "$REQUESTED_SHELL" : # Run container with chosen shell
 echo "🛠  Attaching to container: $container"
 docker exec \
-  --interactive \                   # Keep STDIN open
-  --tty \                           # Allocate a TTY (for shell)
-  "$container" "$REQUESTED_SHELL"   # Run container with chosen shell
+  --interactive \
+  --tty \
+  "$container" "$REQUESTED_SHELL"
 

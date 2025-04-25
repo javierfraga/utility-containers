@@ -91,13 +91,20 @@ export HOST_WORKDIR="$(pwd)"
 echo "🚀 Running: $image with shell: $REQUESTED_SHELL"
 echo "🚀 Running: In this location: $HOST_WORKDIR"
 
-# 🐳 Run container using docker compose run (ephemeral)
-docker compose \
-  --file "${REPO_DIR}/docker-compose.yaml" \     # Use project-wide compose file
-  run \
-  --rm \                                          # Delete container after exit
-  --interactive \                                 # Keep STDIN open
-  --tty \                                         # Allocate a TTY (for shell)
-  --service-ports \                               # Map ports defined in compose (plus overrides)
-  "${SERVICE}" "$REQUESTED_SHELL"                 # Run service with chosen shell
 
+# 🐳 Run container using docker compose run (ephemeral)
+# Use project-wide compose file
+#   --file "${REPO_DIR}/docker-compose.yaml" : # Use project-wide compose file
+#   --rm : # Delete container after exit
+#   --interactive : # Keep STDIN open
+#   --tty : # Allocate a TTY (for shell)
+#   --service-ports : # Map ports defined in compose (plus overrides)
+#   "${SERVICE}" "$REQUESTED_SHELL" : # Run service with chosen shell
+docker compose \
+  --file "${REPO_DIR}/docker-compose.yaml" \
+  run \
+  --rm \
+  --interactive \
+  --tty \
+  --service-ports \
+  "${SERVICE}" "$REQUESTED_SHELL"

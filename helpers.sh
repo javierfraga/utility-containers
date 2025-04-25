@@ -10,10 +10,12 @@ _find_latest_container() {
   local service="$1"  # Capture service name passed in as the first argument
 
   # Get latest container name that matches the service filter
+  #   --filter "name=${service}" \        # Filter containers by name matching service
+  #   --format '{{.Names}}' | head -n 1)  # Get only container names, return the most recent
   local name
   name=$(docker ps \
-    --filter "name=${service}" \        # Filter containers by name matching service
-    --format '{{.Names}}' | head -n 1)  # Get only container names, return the most recent
+    --filter "name=${service}" \
+    --format '{{.Names}}' | head -n 1)
 
   # If no container was found, print error and return failure
   if [[ -z "$name" ]]; then
