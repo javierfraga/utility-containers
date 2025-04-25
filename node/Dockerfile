@@ -1,27 +1,29 @@
 # ===========
 # BASE STAGE
 # ===========
-FROM node:latest AS base
+FROM node:latest AS base  # Use official latest Node.js image as base
 
+# Accept build-time variables for user and folder structure
 ARG USERNAME=node
 ARG UID=1000
 ARG GID=1000
-# Get values from .env -> dcbuild -> here:
-ARG APP_DIR
-ARG FILES_DIR
 
-ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \
-    APP_DIR=${APP_DIR} \
-    FILES_DIR=${FILES_DIR} \
-    NODE_ENV=production
+# These values are passed from `.env` → `dcbuild` → Dockerfile via `--build-arg`
+ARG APP_DIR               # Default bind-mounted working directory (e.g., /mnt)
+ARG FILES_DIR             # Location for copying files into image (e.g., /files)
 
-# Don't need this node image already has user I can use
-# Create non-root user
-# RUN groupadd --gid "${GID}" "${USERNAME}" \
-#  && useradd --uid "${UID}" --gid "${GID}" --create-home --shell /bin/bash "${USERNAME}"
+# Define environment variables used in the container
+ENV PATH="/home/${USERNAME}/.local/bin:$PATH" \  # Add local bin to PATH
+    APP_DIR=${APP_DIR} \                         # Set app directory env var
+    FILES_DIR=${FILES_DIR} \                     # Set files directory env var
+    NODE_ENV=production                          # Default to production environment
 
-# Mount here so can copy and Bind Mount (in dev) will not overwrite these files
+# 🧑‍💻 Optional non-root user — not needed in Node image, so skipped here
+
+# Use /files to avoid conflicts with /mnt bind-mount in dev
 WORKDIR ${FILES_DIR}
+
+# Copy only the Docker-relevant files into image
 COPY ./Dockerfile ./app.mjs ./readme.md ./package*.json ./
 
 # ============
@@ -32,43 +34,41 @@ FROM base AS dev
 # ============
 # 🌟🌟🌟LABEL
 # ============
-# Special filter: docker image prune --all --filter "label=keep=true"
+# Optional cleanup support: keep=true will preserve this image when pruning
 # LABEL keep=true
 
-# Override to dev mode
+# Override NODE_ENV to development for this stage
 ENV NODE_ENV=development
 
-# Install dev tools and shell
+# 🧰 Install dev tools, plugins, dotfiles
 RUN apt-get update && \
     apt-get install --no-install-recommends --yes \
-      zsh \
-      git \
-      fd-find \
-      lf \
-      jq \
-      iproute2 \
-      zsh-autosuggestions \
-      zsh-syntax-highlighting \
-      stow \
-      man-db \
-      tree \
-      # neovim \ # this fails the build, install below, see below
-      dumb-init && \
+      zsh \                                # Default shell
+      git \                                # Git for dotfiles and source
+      fd-find \                            # Fast find replacement
+      lf \                                 # Terminal file manager
+      jq \                                 # JSON processor
+      iproute2 \                           # Networking commands
+      zsh-autosuggestions \                # Zsh plugin
+      zsh-syntax-highlighting \           # Another zsh plugin
+      stow \                               # For managing dotfiles
+      man-db \                             # Manual page support
+      tree \                               # Directory visualization
+      dumb-init && \                       # PID 1 helper (used in ENTRYPOINT)
     git clone https://github.com/MenkeTechnologies/zsh-expand "$HOME"/.zsh/zsh-expand && \
     git clone https://github.com/zsh-users/zsh-completions.git /usr/local/share/zsh-completions && \
     chmod -R 755 /usr/local/share/zsh-completions && \
-    ln -s $(which fdfind) /usr/local/bin/fd && \
+    ln -s $(which fdfind) /usr/local/bin/fd && \   # Rename `fdfine` to `fd`
     git clone --recurse-submodules https://gitlab.com/javierfraga/dotfiles.git "$HOME"/dotfiles && \
     cd "$HOME"/dotfiles && \
     git submodule update --remote --merge && \
-    mv "$HOME"/.bashrc "$HOME"/.bashrc.bak && \
-    stow --target="$HOME" stow-target-files && \
+    mv "$HOME"/.bashrc "$HOME"/.bashrc.bak && \    # Move .bashrc, prevents stow symlinks
+    stow --target="$HOME" stow-target-files && \   # Apply dotfiles via stow
     git config --global commit.template "$HOME/.config/git/commit-template.txt" && \
     "$HOME"/dotfiles/nvim/pack/nvim-plugins/start/run-me.sh && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*                    # Reduce image size
 
-
-# ✅ Install latest version of neovim
+# ✅ Install Neovim manually by platform (useful if apt version is outdated)
 ARG TARGETPLATFORM
 
 RUN set -e && \
@@ -86,14 +86,13 @@ RUN set -e && \
     ln -sf /opt/nvim/nvim-*/bin/nvim /usr/local/bin/nvim && \
     cd / && rm -rf /opt/build
 
-# Install LunarVim without Python or Rust support
-# printf are prompt answers
+# 🌙 Install LunarVim without optional language support for Python and Rust
+# Prompts are answered via printf piping to install support for Node but forfeit Python and Rust
 RUN bash -c ' \
   LV_BRANCH="release-1.4/neovim-0.9"; \
   printf "yes\nno\nno\n" | bash <(curl -s https://raw.githubusercontent.com/LunarVim/LunarVim/release-1.4/neovim-0.9/utils/installer/install.sh) '
 
-
-# Install docker passthru to use host's Docker Engine
+# 🐳 Install Docker CLI for passthrough support
 RUN apt-get update && \
     apt-get install --no-install-recommends --yes \
       ca-certificates \
@@ -108,19 +107,20 @@ RUN apt-get update && \
     apt-get install --no-install-recommends --yes docker-ce-cli && \
     rm -rf /var/lib/apt/lists/*
 
-# ✅ Stay as root
-# USER ${USERNAME} ← ❌ Remove this
+# ✅ Stay as root for full access
+# USER ${USERNAME} ← ❌ Skip non-root for dev container
 USER root
 
-# Set working directory to /app (which will be bind-mounted)
+# Set working directory to app mount point (bind-mounted at runtime)
 WORKDIR ${APP_DIR}
 
-# Anonymous volume for node_modules to isolate from host
+# Anonymous volume for node_modules so it doesn't persist in host bind-mount
 VOLUME ["${APP_DIR}/node_modules"]
 
-# For dev servers listening on port 80
+# Expose port for local dev servers
 EXPOSE 80
 
+# 🧠 Use dumb-init to manage signal forwarding and zombie reaping
 # Use dumb-init to:
 # - Act as PID 1 inside the container
 # - Properly forward signals (e.g., SIGINT, SIGTERM)
@@ -133,21 +133,22 @@ ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 # ===============
 FROM base AS prod
 
-# Keep NODE_ENV=production
+# Keep NODE_ENV=production for production
 ENV NODE_ENV=production
 
+# Use non-root user in production
 USER ${USERNAME}
 WORKDIR ${APP_DIR}
 
-# Only install production dependencies
+# Only install production deps
 RUN npm install --omit=dev
 
-# Copy source code
+# Copy app code into container with correct ownership
 COPY --chown=${USERNAME}:${USERNAME} . .
 
-# Inform Docker this container listens on port 80
+# Listen on port 80
 EXPOSE 80
 
-# Start the app (adjust entrypoint as needed)
+# Start the app (can be changed)
 CMD ["node", "index.js"]
 
