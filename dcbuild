@@ -103,12 +103,47 @@ BUILD_ARG_FLAGS=(
   "--build-arg" "FILES_DIR=${FILES_DIR}"
 )
 
+# 🏷 Check if 'latest' is among the tags — if so, preserve this image
+if [[ " ${TAGS[*]} " =~ " latest " ]]; then
+  echo "📌 Tag 'latest' detected — enabling keep=true label"
+  BUILD_ARG_FLAGS+=( "--build-arg" "LABEL_KEEP=true" )
+else
+  BUILD_ARG_FLAGS+=( "--build-arg" "LABEL_KEEP=false" )
+fi
+
+
 # 🏷 Prepare tags
 BUILD_TAG_ARGS=()
 for tag in "${TAGS[@]}"; do
   echo "🏷 Adding tag: ${FULL_IMAGE}:${tag}"
   BUILD_TAG_ARGS+=( "--tag" "${FULL_IMAGE}:${tag}" )
 done
+
+
+# 🐳 Start building the image using buildx (multi-arch builder)
+# Description of build Options
+# --no-cache \
+# # 🚫 Disable build cache — always perform a fresh build (important for dev/test images)
+#
+# --platform linux/amd64,linux/arm64 \
+# # 🏗️ Specify multiple target platforms to build cross-platform images (e.g., for Intel and ARM CPUs)
+#
+# --target "${BUILD_TARGET}" \
+# # 🎯 Specify the named build stage to target inside Dockerfile (e.g., 'dev' or 'prod')
+#
+# "${BUILD_ARG_FLAGS[@]}" \
+# # 🧱 Expand and pass build-time variables (like APP_DIR, FILES_DIR, and conditional LABEL_KEEP)
+# # This is dynamically generated based on conditions earlier in the script
+#
+# "${BUILD_TAG_ARGS[@]}" \
+# # 🏷️ Expand and pass image tagging flags (e.g., --tag myrepo/myimage:v0.01, --tag myrepo/myimage:latest)
+# # These were collected earlier into an array to support multiple tags per build
+#
+# --push \
+# # 📤 After successfully building, immediately push the image(s) to the remote registry (e.g., DockerHub)
+#
+# "$SERVICE_PATH"
+# # 📂 Set the directory containing the Dockerfile and associated files (typically the service folder)
 
 # 🚀 Build and push for multi-arch
 docker buildx build \

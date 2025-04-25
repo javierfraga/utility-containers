@@ -6,6 +6,7 @@ FROM node:latest AS base
 
 # Accept build-time variables for user and folder structure
 ARG USERNAME=node
+ARG LABEL_KEEP=false
 ARG UID=1000
 ARG GID=1000
 
@@ -40,7 +41,7 @@ FROM base AS dev
 # 🌟🌟🌟LABEL
 # ============
 # Optional cleanup support: keep=true will preserve this image when pruning
-# LABEL keep=true
+LABEL keep=${LABEL_KEEP}
 
 # Override NODE_ENV to development for this stage
 ENV NODE_ENV=development
