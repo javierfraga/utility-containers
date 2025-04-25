@@ -1,13 +1,19 @@
 #!/bin/bash
 
-# 📍 Resolve absolute path
+# 📍 Resolve absolute path to script directory (even if symlinked)
+# Get the source of the script: BASH_SOURCE[0] if available, else fallback to $0
 SOURCE="${BASH_SOURCE[0]:-$0}"
+
+# Follow symlinks until we reach the real file
 while [ -h "$SOURCE" ]; do
+  # Get the directory that contains the symlink
   DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  # Resolve the symlink target
   SOURCE="$(readlink "$SOURCE")"
+  # If the resolved path is relative, prepend the directory to make it absolute
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
-REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"  # Final resolved script location
 
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   echo "BE CAREFUL: THIS WILL REMOVE CONTAINERS PERMANENTLY!"
@@ -21,14 +27,20 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
   exit 0
 fi
 
+# 🧳 Capture all arguments as an array of project names (e.g., dcdown proj1 proj2 ...)
 projects=("$@")
+
+# 📂 If no projects were passed, default to the current directory name
+# This allows you to simply run `dcdown` inside a project folder without arguments
 [[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
 
+# 🔁 Loop over each project and shut it down
 for project in "${projects[@]}"; do
   echo "📦 Shutting down project: $project"
+
   docker compose \
-    --file "${REPO_DIR}/docker-compose.yaml" \
-    --project-name "$project" \
-    down
+    --file "${REPO_DIR}/docker-compose.yaml" \ # Specify main compose file explicitly
+    --project-name "$project" \                # Override project name (instead of defaulting to directory)
+    down                                       # 🔻 Brings down containers, networks, volumes for this project
 done
 

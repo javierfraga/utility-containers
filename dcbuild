@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # 📍 Resolve absolute path to script directory (even if symlinked)
-
 # Get the source of the script: BASH_SOURCE[0] if available, else fallback to $0
 SOURCE="${BASH_SOURCE[0]:-$0}"
 
