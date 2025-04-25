@@ -39,7 +39,7 @@ for project in "${projects[@]}"; do
   echo "🟢 Starting all containers in project: $project"
   docker compose \
     --file "${REPO_DIR}/docker-compose.yaml" \ # Specify main compose file explicitly
-    --project-name "$project" \                # Override project name (instead of defaulting to directory)
-    start                                      # 🔻 Starts containers, networks, volumes for this project
+    --project-name "$project" \  # Override project name (instead of defaulting to directory)
+    start  # 🔻 Starts containers, networks, volumes for this project
 done
 
