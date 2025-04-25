@@ -16,33 +16,34 @@ done
 REPO_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"  # Final resolved script location
 
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-  echo "DESCRIPTION: Stop persistent containers started via dcup (but don't remove them)."
+  echo "BE CAREFUL: THIS WILL REMOVE CONTAINERS PERMANENTLY!"
   echo "Usage:"
-  echo "  dcstop                        # stop containers for current directory"
-  echo "  dcstop <proj1> [proj2 ...]    # stop containers in multiple projects"
+  echo "  dckill                        # shut down project for current directory"
+  echo "  dckill <proj1> [proj2 ...]    # shut down multiple projects"
   echo
   echo "Example:"
-  echo "  dcstop dev tmp"
-  echo "  => stops dev-node-1 and tmp-node-1"
+  echo "  dckill myproject tmpproject"
+  echo "  => removes containers like: myproject-node-1, tmpproject-node-1"
   exit 0
 fi
 
-# 🧳 Capture all arguments as an array of project names (e.g., dcstop proj1 proj2 ...)
+# 🧳 Capture all arguments as an array of project names (e.g., dckill proj1 proj2 ...)
 projects=("$@")
 
 # 📂 If no projects were passed, default to the current directory name
-# This allows you to simply run `dcstop` inside a project folder without arguments
+# This allows you to simply run `dckill` inside a project folder without arguments
 [[ ${#projects[@]} -eq 0 ]] && projects+=("$(basename "$PWD")")
 
-# 🔁 Loop over each project and pause it
+# 🔁 Loop over each project and shut it down
 for project in "${projects[@]}"; do
-  echo "🛑 Stopping all containers in project: $project"
-  # 🔻 Pauses (but stays persistent in dockerps) containers, networks, volumes for this project
-  #  --file "${REPO_DIR}/docker-compose.yaml" \  # Specify main compose file explicitly
-  #  --project-name "$project" \  # Override project name (instead of defaulting to directory)
+  echo "📦 Shutting down project: $project"
+
+  # 🔻 Brings down (kills) containers, networks, volumes for this project
+  #   --file "${REPO_DIR}/docker-compose.yaml" : # Specify main compose file explicitly
+  #   --project-name "$project" :  # Override project name (instead of defaulting to directory)
   docker compose \
     --file "${REPO_DIR}/docker-compose.yaml" \
     --project-name "$project" \
-    stop
+    down
 done
 
