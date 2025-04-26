@@ -49,27 +49,8 @@ image="${DOCKERHUB_NAMESPACE}/${IMAGE_PREFIX}-${SERVICE}:${IMAGE_TAG}"
 export FULL_IMAGE_TAG="${image}"  # 👈 lets Compose use the dynamic image
 
 # 🌟 If no shell specified, attempt to fall back to preferred shells in order: zsh > bash > sh
-if [[ -z "$REQUESTED_SHELL" ]]; then
-  for shell in zsh bash sh; do
-    if _validate_shell "$image" "$shell"; then
-      REQUESTED_SHELL="$shell"
-      break
-    fi
-  done
-
-  # ❌ Still no shell found — exit with error
-  if [[ -z "$REQUESTED_SHELL" ]]; then
-    echo "❌ No supported shell found in image: $image"
-    exit 1
-  fi
-
-else
-  # ✅ If a shell was requested explicitly, validate that it exists in the image
-  _validate_shell "$image" "$REQUESTED_SHELL" || {
-    echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
-    exit 1
-  }
-fi
+# REQUESTED_SHELL="$(_select_preferred_shell "$image" "$REQUESTED_SHELL")" || exit 1
+_select_preferred_shell "$image" "$REQUESTED_SHELL" || exit 1
 
 # 📦 Handle dynamic port overrides (e.g., --port 3000:80 --port 9229:9229)
 if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then

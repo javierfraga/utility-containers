@@ -50,17 +50,17 @@ _parse_args() {
       --help|-h)
         # 📜 Print help for dcrun and dcup argument formats
         echo "DESCRIPTION:"
-        echo "  🌀 dcrun  → Runs an ephemeral interactive container with a shell (default: zsh)"
-        echo "  🔁 dcup   → Runs a persistent container (detached), then attaches with a shell (default: zsh)"
+        echo "  🌀 dcrun  → Runs an ephemeral interactive container with a shell (default fallback: auto-detect zsh/bash/sh)"
+        echo "  🔁 dcup   → Runs a persistent container (detached), then attaches with a shell (default fallback: auto-detect zsh/bash/sh)"
         echo
         echo "USAGE:"
         echo "  dcrun <service>:<tag> [shell] [--port HOST:CONTAINER ...]"
         echo "  dcrun <service> <tag> [shell] [--port ...]"
-        echo "  dcrun <service> [shell]           # defaults to latest + zsh"
+        echo "  dcrun <service> [shell]           # defaults to latest + auto-detected shell"
         echo
         echo "  dcup <service>:<tag> [shell] [project] [--port ...]"
         echo "  dcup <service> <tag> [shell] [project]"
-        echo "  dcup <service> [shell] [project]  # defaults to latest + zsh"
+        echo "  dcup <service> [shell] [project]  # defaults to latest + auto-detected shell"
         return 1
         ;;
       *)
@@ -72,60 +72,95 @@ _parse_args() {
   done
 
   # 🎯 Reset positional parameters ($1, $2, ...) to only the non-option arguments
-  # This allows the rest of the script to use normal $1/$2 logic (e.g. service, tag, shell)
-  # e.g. prev
-  # - POSITIONAL_ARGS = ( "node:dev" "zsh" )
-  # - USER_PORTS = ( "3000:80" )
   set -- "${POSITIONAL_ARGS[@]}"
-  # e.g. post
-  # - $1 = "node:dev"
-  # - $2 = "zsh"
+  # Post-reset:
+  # - $1 = first non-option argument
+  # - $2 = second non-option argument
+  # - $3 = third non-option argument, etc.
   local arg1="$1" arg2="$2" arg3="$3" arg4="$4"
 
   # 🧩 CASE A: Service + tag combined (e.g. node:v0.01)
   if [[ "$arg1" == *:* ]]; then
-    SERVICE="${arg1%%:*}"            # Extract service name before :
-    IMAGE_TAG="${arg1#*:}"           # Extract tag after :
-    REQUESTED_SHELL="${arg2:-zsh}"   # Optional shell (default to zsh)
-    PROJECT_NAME="$3"                # Optional project name
+    SERVICE="${arg1%%:*}"         # Extract service name before the colon
+    IMAGE_TAG="${arg1#*:}"         # Extract tag after the colon
+    REQUESTED_SHELL="$arg2"        # Explicitly provided shell (optional, might be empty)
+    PROJECT_NAME="$3"              # Optional project name
   else
-    # 🧩 CASE B: Separated inputs (e.g. node v0.01 zsh)
+    # 🧩 CASE B: Separate arguments (e.g. node v0.01 zsh)
     SERVICE="$arg1"
     case "$arg2" in
       sh|bash|zsh)
-        IMAGE_TAG="latest"   # If arg2 is a shell, assume default image tag
+        # If arg2 looks like a known shell name, assume default image tag
+        IMAGE_TAG="latest"
         REQUESTED_SHELL="$arg2"
         PROJECT_NAME="$3"
         ;;
       *)
-        IMAGE_TAG="${arg2:-latest}"    # Otherwise assume it's a tag
-        REQUESTED_SHELL="${arg3:-zsh}" # Next is shell (default zsh)
+        # Otherwise, assume second arg is a tag (e.g. v0.01), third arg may be shell
+        IMAGE_TAG="${arg2:-latest}"  # Default to "latest" if missing
+        REQUESTED_SHELL="$arg3"       # Third arg is optional shell (might be empty)
         PROJECT_NAME="$4"
         ;;
     esac
   fi
 
-  # 🔁 Final fallbacks to ensure safety
+  # 🔁 Final fallbacks to ensure we never break the script downstream
   IMAGE_TAG="${IMAGE_TAG:-latest}"
-  REQUESTED_SHELL="${REQUESTED_SHELL:-zsh}"
+
+  # IMPORTANT ⚡:
+  # - DO NOT set default shell here anymore
+  # - Leave REQUESTED_SHELL empty if not provided
+  # - It will be *resolved dynamically* later (using _select_preferred_shell)
+  # - This allows dynamic auto-detection (zsh → bash → sh) without being forced
 }
 
-# ❗ _validate_shell: Check if the shell exists in the image
-_validate_shell() {
+# 🔎 _check_shell_exists: Attempt to create a container with a specific shell
+#    - Used to determine if a given shell (e.g., zsh, bash, sh) exists inside the image
+#    - Returns 0 if shell exists, 1 if it does not
+#    - All success output is silent (stdout suppressed), only failure visible
+_check_shell_exists() {
   local image="$1"  # Full image name (e.g. javierfraga/utilcntr-node:v0.01)
   local shell="$2"  # Shell to test (e.g. zsh, bash, sh)
 
-  echo "🔎 Validating shell '$shell' in image: $image"
-
-  # Create a temporary container with the shell as entrypoint
-  # If it fails to create, the shell likely does not exist
+  # 🌟 Try creating a temporary container with the shell as entrypoint
+  #   - If the shell doesn't exist in the image, creation will fail
+  #   - -c "exit 0" trick ensures it tries to execute cleanly if it does exist
   local container
   container=$(docker create --entrypoint "$shell" "$image" -c "exit 0" 2>/dev/null) || return 1
 
-  # Clean up the container after test
+  # 🧹 Clean up the temporary container immediately after test
   docker rm -f "$container" >/dev/null 2>&1
 
-  # ✅ Success
-  return 0
+  return 0  # ✅ Shell exists
+}
+
+# 🧠 _select_preferred_shell: Choose the best available shell to use inside the container
+#    - If REQUESTED_SHELL is provided, validate it exists
+#    - If not provided, fallback dynamically: try zsh → bash → sh
+#    - Print success/failure messages cleanly to stderr
+#    - Important: does NOT affect stdout, only prints user-facing info to stderr
+_select_preferred_shell() {
+  if [[ -n "$REQUESTED_SHELL" ]]; then
+    # 📝 User explicitly requested a shell → validate it
+    if _check_shell_exists "$image" "$REQUESTED_SHELL"; then
+      printf "✅ Using explicitly requested shell: %s\n" "$REQUESTED_SHELL" >&2
+    else
+      printf "❌ Requested shell '%s' not found in image: %s\n" "$REQUESTED_SHELL" "$image" >&2
+      exit 1
+    fi
+  else
+    # 🔎 No shell specified → fallback sequence: zsh, then bash, then sh
+    for candidate in zsh bash sh; do
+      if _check_shell_exists "$image" "$candidate"; then
+        REQUESTED_SHELL="$candidate"
+        printf "✅ Auto-selected available shell: %s\n" "$REQUESTED_SHELL" >&2
+        return 0
+      fi
+    done
+
+    # ❌ No compatible shells found in image
+    printf "❌ No supported shell found in image: %s\n" "$image" >&2
+    exit 1
+  fi
 }
 
