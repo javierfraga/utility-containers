@@ -51,27 +51,7 @@ export FULL_IMAGE_TAG="${image}"  # 👈 Injects into Compose as environment var
 project="${PROJECT_NAME:-$(basename "$PWD")}"
 
 # 🌟 Auto-detect preferred shell from image (zsh > bash > sh), if one wasn't explicitly provided
-if [[ -z "$REQUESTED_SHELL" ]]; then
-  for shell in zsh bash sh; do
-    if _validate_shell "$image" "$shell"; then
-      REQUESTED_SHELL="$shell"
-      break
-    fi
-  done
-
-  # ❌ If no shell found in image, exit with error
-  if [[ -z "$REQUESTED_SHELL" ]]; then
-    echo "❌ No supported shell found in image: $image"
-    exit 1
-  fi
-
-else
-  # ✅ Validate explicitly requested shell exists in image
-  _validate_shell "$image" "$REQUESTED_SHELL" || {
-    echo "❌ Shell '$REQUESTED_SHELL' not found in image: $image"
-    exit 1
-  }
-fi
+_select_preferred_shell "$image" "$REQUESTED_SHELL" || exit 1
 
 # 📦 Handle dynamic port overrides (e.g., --port 3000:80 --port 9229:9229)
 if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
