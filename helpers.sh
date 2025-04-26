@@ -164,3 +164,20 @@ _select_preferred_shell() {
   fi
 }
 
+# 📦 _handle_dynamic_ports: Handle --port overrides for docker-compose
+# If USER_PORTS is set, join them into PORT_MAPPINGS and export it
+# Also print a user-friendly list of overridden ports
+_handle_dynamic_ports() {
+  if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
+    # 🧩 Join USER_PORTS into a comma-separated string (e.g., "3000:80,9229:9229")
+    PORT_MAPPINGS=$(IFS=, ; echo "${USER_PORTS[*]}")
+    export PORT_MAPPINGS  # 📦 Used dynamically inside docker-compose.yaml as ${PORT_MAPPINGS}
+
+    # 📣 Show overridden ports clearly
+    echo "💡 Overriding ports for service '$SERVICE':"
+    for p in "${USER_PORTS[@]}"; do
+      echo "  - $p"
+    done
+  fi
+}
+

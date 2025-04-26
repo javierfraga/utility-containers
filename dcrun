@@ -53,18 +53,7 @@ export FULL_IMAGE_TAG="${image}"  # 👈 lets Compose use the dynamic image
 _select_preferred_shell "$image" "$REQUESTED_SHELL" || exit 1
 
 # 📦 Handle dynamic port overrides (e.g., --port 3000:80 --port 9229:9229)
-if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
-  # Join the array into a comma-separated string for Compose (e.g., 3000:80,9229:9229)
-  # IFS (internal field separator) temporarily set to comma
-  PORT_MAPPINGS=$(IFS=, ; echo "${USER_PORTS[*]}")
-  export PORT_MAPPINGS
-
-  # 📣 Show what was overridden
-  echo "💡 Overriding ports for service '$SERVICE':"
-  for p in "${USER_PORTS[@]}"; do
-    echo "  - $p"
-  done
-fi
+_handle_dynamic_ports
 
 # 💻 Store the host path we're running from so Compose can bind-mount it as working_dir
 export HOST_WORKDIR="$(pwd)"
