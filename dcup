@@ -54,16 +54,7 @@ project="${PROJECT_NAME:-$(basename "$PWD")}"
 _select_preferred_shell "$image" "$REQUESTED_SHELL" || exit 1
 
 # 📦 Handle dynamic port overrides (e.g., --port 3000:80 --port 9229:9229)
-if [[ "${#USER_PORTS[@]}" -gt 0 ]]; then
-  # Join the array into a comma-separated string for Compose (e.g., 3000:80,9229:9229)
-  # IFS (internal field separator) temporarily set to comma
-  PORT_MAPPINGS=$(IFS=, ; echo "${USER_PORTS[*]}")
-  export PORT_MAPPINGS  # Used inside docker-compose.yaml
-  echo "💡 Overriding ports for service '$SERVICE':"
-  for p in "${USER_PORTS[@]}"; do
-    echo "  - $p"
-  done
-fi
+_handle_dynamic_ports
 
 # 🗂 Set the current host working directory to mount into container at runtime
 export HOST_WORKDIR="$(pwd)"
