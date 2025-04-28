@@ -89,6 +89,7 @@ RUN apt-get update && \
     stow --target="$HOME" stow-target-files && \
     git config --global commit.template "$HOME/.config/git/commit-template.txt" && \
     "$HOME"/dotfiles/nvim/pack/nvim-plugins/start/run-me.sh && \
+    "$HOME"/dotfiles/lvim/lua/run-me.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # ✅ Install Neovim manually by platform (useful if apt version is outdated)
