@@ -118,6 +118,7 @@ RUN apk add --no-cache --update \
   py3-pip \
   ripgrep \
   neovim \
+  gzip \
   unzip \
   wget \
   dumb-init && \
