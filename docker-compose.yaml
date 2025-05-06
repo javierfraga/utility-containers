@@ -57,6 +57,25 @@ services:
       - ${PORT_MAPPINGS:-5500:80}  # 👈 dynamic with fallback
     command: ["sh", "-i"]
 
+  bash:
+    build:
+      context: ./bash
+      target: ${DEFAULT_BUILD_TARGET}
+      args:
+        APP_DIR: ${APP_DIR}
+        FILES_DIR: ${FILES_DIR}
+    image: ${FULL_IMAGE_TAG}
+    working_dir: ${APP_DIR}
+    entrypoint: ["dumb-init", "--"]  # ✅ explicitly set entrypoint
+    stdin_open: true
+    tty: true
+    volumes:
+      - ${HOST_WORKDIR:-.}:${APP_DIR}
+      - /var/run/docker.sock:/var/run/docker.sock  # enable docker passthru
+    ports:
+      - ${PORT_MAPPINGS:-6000:80}  # 👈 dynamic with fallback
+    command: ["sh", "-i"]
+
   arch:
     build:
       context: ./arch
