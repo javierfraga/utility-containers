@@ -18,13 +18,13 @@ ARG FILES_DIR             # Location for copying files into image (e.g., /files)
 # PATH="/home/${USERNAME}/.local/bin:$PATH" :  # Add local bin to PATH
 # APP_DIR=${APP_DIR} :                         # Set app directory env var
 # FILES_DIR=${FILES_DIR} :                     # Set files directory env var
-# NODE_ENV=production :                        # Default to production environment
+# IMAGE_ENV=production :                        # Default to production environment
 ENV PATH="/home/${USERNAME}/.local/bin:$PATH"
 ENV APP_DIR=${APP_DIR}
 ENV FILES_DIR=${FILES_DIR}
-ENV NODE_ENV=production
+ENV IMAGE_ENV=production
 
-# 🧑💻 Optional non-root user — not needed in Node image, so skipped here
+# 🧑💻 Optional non-root user — not needed in image, so skipped here
 
 # Use /files to avoid conflicts with /mnt bind-mount in dev
 WORKDIR ${FILES_DIR}
@@ -43,8 +43,8 @@ FROM base AS dev
 # Optional cleanup support: keep=true will preserve this image when pruning
 LABEL keep=${LABEL_KEEP}
 
-# Override NODE_ENV to development for this stage
-ENV NODE_ENV=development
+# Override IMAGE_ENV to development for this stage
+ENV IMAGE_ENV=development
 ENV LV_BRANCH="release-1.4/neovim-0.9"
 
 # 🧰 Install dev tools, plugins, dotfiles
@@ -202,8 +202,8 @@ ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 FROM base AS prod
 
-# Keep NODE_ENV=production for production
-ENV NODE_ENV=production
+# Keep IMAGE_ENV=production for production
+ENV IMAGE_ENV=production
 
 # Use non-root user in production
 USER ${USERNAME}
