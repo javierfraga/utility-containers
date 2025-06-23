@@ -86,3 +86,16 @@ Example:
   => sets keep=true on: myproject-node-1, tmp-node-1, etc.
 
 ```
+
+### Other nice to knows
+#### Alpine tips
+how to add man docs for a program:
+1. first ensure man pages is installed properly
+```bash
+apk update
+apk add mandoc man-pages
+```
+2. next, install a man page manually per program, i.e. `grep`
+```bash
+apk add grep-doc
+```
