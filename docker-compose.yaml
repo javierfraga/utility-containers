@@ -37,6 +37,8 @@ services:
     ports:
       - ${PORT_MAPPINGS:-4000:80}  # 👈 dynamic with fallback
     command: ["sh", "-i"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   gcc:
     build:
