@@ -123,6 +123,7 @@ RUN apk add --no-cache --update \
   unzip \
   wget \
   dumb-init && \
+  python3 -m pip install --upgrade pip && \
   git clone https://github.com/MenkeTechnologies/zsh-expand "$HOME"/.zsh/zsh-expand && \
   git clone --recurse-submodules https://gitlab.com/javierfraga/dotfiles.git "$HOME"/dotfiles && \
   cd "$HOME"/dotfiles && \
